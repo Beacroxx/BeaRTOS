@@ -1,0 +1,38 @@
+# Build and output directories
+.pio/
+build/
+debug/
+release/
+test/
+cmake-build-*/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.dis
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Platform specific
+.DS_Store
+Thumbs.db
+
+# Generated files
+compile_commands.json
+.cache/
