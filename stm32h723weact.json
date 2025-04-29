@@ -1,0 +1,47 @@
+{
+	"build": {
+		"core": "stm32",
+		"cpu": "cortex-m7",
+		"extra_flags": "-DSTM32H7xx -DSTM32H723xx",
+		"f_cpu": "550000000L",
+		"mcu": "stm32h723vgt6",
+		"product_line": "STM32H7xx"
+	},
+	"connectivity": [
+		"can",
+		"ethernet",
+		"usb_otg_fs",
+		"usb_otg_hs"
+	],
+	"debug": {
+		"default_tools": [
+			"stlink"
+		],
+		"jlink_device": "STM32H723VG",
+		"onboard_tools": [
+			"stlink"
+		],
+		"openocd_target": "stm32h7x",
+		"svd_path": "STM32H7x3.svd"
+	},
+	"frameworks": [
+		"cmsis",
+		"stm32cube",
+		"zephyr"
+	],
+	"name": "WeAct STM32H723VGT6 Demo Board",
+	"upload": {
+		"maximum_ram_size": 577536,
+		"maximum_size": 1048576,
+		"protocol": "stlink",
+		"protocols": [
+			"blackmagic",
+			"cmsis-dap",
+			"jlink",
+			"stlink",
+			"mbed"
+		]
+	},
+	"url": "https://github.com/WeActStudio/WeActStudio.MiniSTM32H723",
+	"vendor": "WeAct"
+}
