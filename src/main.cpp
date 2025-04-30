@@ -45,6 +45,7 @@ void TIM2_IRQHandler(void) { Timer::irqHandler(); }
 void HardFault_Handler(void) { ErrorHandler::hardFault(); }
 
 void PendSV_Handler(void) {
+  Scheduler::updateNextTask();
   Scheduler::switchTasks();
 }
 
@@ -85,9 +86,9 @@ int main(void) {
   UART::init();
 
   Scheduler::init();
-  Scheduler::initTaskStack(Scheduler::tasks[0], task1);
-  Scheduler::initTaskStack(Scheduler::tasks[1], task2);
-  Scheduler::initTaskStack(Scheduler::tasks[2], task3);
+  Scheduler::initTaskStack(task1, 1024);
+  Scheduler::initTaskStack(task2, 1024);
+  Scheduler::initTaskStack(task3, 1024);
   Scheduler::start();
 
   while (1) {

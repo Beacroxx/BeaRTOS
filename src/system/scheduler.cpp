@@ -2,16 +2,18 @@
 #include "error/handler.hpp"
 #include <cstdio>
 
-TCB Scheduler::tasks[Scheduler::TASK_COUNT + 1];
+TCB *Scheduler::tasks = nullptr;
 TCB *Scheduler::currentTask = nullptr;
+TCB *Scheduler::nextTask = nullptr;
 uint32_t Scheduler::taskIndex = 0;
+uint32_t Scheduler::taskCount = 0;
 
 void Scheduler::init() {
-  taskIndex = 0;
-  Scheduler::initTaskStack(tasks[TASK_COUNT], []() {
+  tasks = (TCB *)malloc(sizeof(TCB)); // allocate just one TCB for dummy task
+  Scheduler::initTaskStack([]() {
     ErrorHandler::hardFault(); // If this task is called, there is a problem
-  });
-  currentTask = &tasks[TASK_COUNT];
+  }, 32);
+  currentTask = nextTask = &tasks[0];
 }
 
 void Scheduler::start() {
@@ -28,8 +30,37 @@ void Scheduler::start() {
 
 void Scheduler::yield() { __asm__ __volatile__("SVC #0"); }
 
-void Scheduler::initTaskStack(TCB &tcb, void (*task)(void)) {
-  uint32_t *sp = tcb.stack + 1024;
+void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize) {
+
+  // look for terminated tasks to reclaim
+  int reclaimed = -1;
+  for (int i = 0; i < taskCount; i++) {
+    if (tasks[i].state == TaskState::TERMINATED) {
+      free(tasks[i].stack);
+      tasks[i].state = TaskState::UNINITIALIZED;
+      reclaimed = i;
+      break;
+    }
+  }
+
+  TCB *tcb = nullptr;
+
+  // increase tasks array only if there are no uninitialized tasks to reclaim
+  if (reclaimed == -1) {
+    tasks = (TCB *)realloc(tasks, sizeof(TCB) * (taskCount + 1));
+    tcb = &tasks[taskCount];
+    taskCount++;
+  } else {
+    tcb = &tasks[reclaimed];
+  }
+
+  // Allocate stack 
+  tcb->stack = (uint32_t *)malloc(stackSize * sizeof(uint32_t));
+  if (tcb->stack == nullptr) {
+    ErrorHandler::hardFault(); // If this task is called, there is a problem
+  }
+
+  uint32_t *sp = tcb->stack + stackSize;
 
   // Push the hardware-saved context (exception frame), top to bottom:
   *(--sp) = 0x01000000;         // xPSR (Thumb state)
@@ -39,16 +70,30 @@ void Scheduler::initTaskStack(TCB &tcb, void (*task)(void)) {
   *(--sp) = 0;                  // R3
   *(--sp) = 0;                  // R2
   *(--sp) = 0;                  // R1
-  *(--sp) = 0;                  // R0
+  *(--sp) = (uint32_t)tcb;     // R0 (pointer to TCB) for taskExit
 
   // Push space for callee-saved registers (R4–R11)
   for (int i = 0; i < 8; ++i)
     *(--sp) = 0;
 
-  tcb.stack_pointer = sp; // Set initial stack pointer
+  tcb->stack_pointer = sp; // Set initial stack pointer
+  tcb->state = TaskState::READY;
 }
 
-void Scheduler::taskExit() { printf("Task exited\n"); }
+void Scheduler::taskExit(uint32_t *tcbptr) {
+  TCB *tcb = (TCB *)tcbptr;
+  free(tcb->stack);
+  tcb->state = TaskState::TERMINATED;
+  printf("Task exited\n");
+}
+
+void Scheduler::updateNextTask() {
+  // find next ready or running task
+  do {
+    taskIndex = (taskIndex + 1) % (taskCount);
+    nextTask = &tasks[taskIndex];
+  } while (nextTask->state != TaskState::READY && nextTask->state != TaskState::RUNNING);
+}
 
 __attribute__((naked)) void Scheduler::switchTasks() {
   __asm__ __volatile__(
@@ -59,31 +104,20 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       "LDR r2, [r1]\n"                         // r2 = currentTask
       "STR r0, [r2]\n"                         // currentTask->stack_pointer = r0
 
-      // increment taskIndex and wrap
-      "LDR r3, =_ZN9Scheduler9taskIndexE\n" // r3 = &Scheduler::taskIndex
-      "LDR r4, [r3]\n"                      // r4 = taskIndex
-      "ADD r4, r4, #1\n"                    // r4 = taskIndex + 1
-      "MOV r5, %[TASKCOUNT]\n"              // r5 = TASK_COUNT
-      "CMP r4, r5\n"                        // compare taskIndex and TASK_COUNT
-      "BLT 1f\n"                            // if taskIndex < TASK_COUNT, skip next two instructions
-      "MOV r4, #0\n"                        // r4 = 0
-      "1:\n"                                // label
-      "STR r4, [r3]\n"                      // taskIndex = r4
-
-      // set currentTask = &tasks[taskIndex]
-      "LDR r6, =_ZN9Scheduler5tasksE\n" // r6 = &Scheduler::tasks
-      "MOV r7, %[TCBSIZE]\n"            // r7 = sizeof(TCB) = 4100 bytes (1024 words + 1 pointer)
-      "MUL r7, r4, r7\n"                // r7 = taskIndex * 4100 bytes
-      "ADD r6, r6, r7\n"                // r6 = &tasks[taskIndex]
-      "STR r6, [r1]\n"                  // currentTask = &tasks[taskIndex]
+      // Set currentTask to nextTask
+      "LDR r3, =_ZN9Scheduler8nextTaskE\n" // r3 = &Scheduler::nextTask
+      "LDR r4, [r3]\n"                      // r4 = nextTask
+      "STR r4, [r1]\n"                      // currentTask = nextTask
 
       // load r4-r11 from next task's stack
-      "LDR r0, [r6]\n"        // r0 = nextTask->stack_pointer
+      "LDR r0, [r4]\n"        // r0 = nextTask->stack_pointer
       "LDMIA r0!, {r4-r11}\n" // Pop r4-r11, increment sp
       "MSR psp, r0\n"         // update PSP
 
       // return from interrupt
       "BX LR\n"
       :
-      : [TASKCOUNT] "i"(TASK_COUNT), [TCBSIZE] "i"(TCB_SIZE));
+      : 
+      : "memory"
+      );
 }
