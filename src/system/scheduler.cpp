@@ -15,17 +15,17 @@ uint32_t Scheduler::taskCount = 0;
 
 // Initialize the scheduler
 void Scheduler::init() {
+  // allocate a dummy task that will get overwritten by the first task
   tasks = static_cast<TCB *>(malloc(sizeof(TCB))); // allocate just one TCB for dummy task
-  Scheduler::initTaskStack(
-      []() {
-        ErrorHandler::hardFault(); // If this task is called, there is a problem
-      }, 
-      32, "dummy");
   currentTask = nextTask = &tasks[0]; // Set current and next task to dummy task
 }
 
 // Start the scheduler
 void Scheduler::start() {
+  if (currentTask == nullptr) {
+    return; // If no tasks, stay in handler mode
+  }
+
   // Set initial PSP to the first task's stack
   __asm__ __volatile__(
       "LDR r0, =_ZN9Scheduler11currentTaskE\n" // r0 = &Scheduler::currentTask
@@ -47,7 +47,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
   // look for terminated tasks to reclaim
   int reclaimed = -1;
   for (int i = 0; i < taskCount; i++) {
-    if (tasks[i].state == TaskState::TERMINATED) {
+    if (tasks[i].state == TaskState::TERMINATED || tasks[i].state == TaskState::UNINITIALIZED) {
       free(tasks[i].stack);
       tasks[i].state = TaskState::UNINITIALIZED;
       reclaimed = i;
@@ -82,7 +82,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
   *(--sp) = 0;                  // R3
   *(--sp) = 0;                  // R2
   *(--sp) = 0;                  // R1
-  *(--sp) = (uint32_t)tcb;      // R0 (pointer to TCB) for taskExit
+  *(--sp) = 0;                  // R0 
 
   // Push space for callee-saved registers (R4–R11)
   for (int i = 0; i < 8; ++i)
@@ -100,21 +100,38 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
 }
 
 // Task exit handler
-void Scheduler::taskExit(uint32_t *tcbptr) {
-  TCB *tcb = reinterpret_cast<TCB *>(tcbptr);
-  free(tcb->stack);                   // Free stack
-  tcb->state = TaskState::TERMINATED; // Set task state to TERMINATED
+__attribute__((naked)) void Scheduler::taskExit() {
+  __disable_irq();
+  
+  // Get current task before any state changes
+  TCB* tcb = currentTask;
+
   printf("Task %s exited\n", tcb->name);
+  tcb->state = TaskState::UNINITIALIZED;
+  memset(tcb->name, 0, sizeof(tcb->name));
+  free(tcb->stack);
+  tcb->stack_pointer = nullptr;
+  tcb->stack = nullptr;
+  
+  __enable_irq();
+  switchTasks();
 }
 
 // Update next task
 void Scheduler::updateNextTask() {
-  // find next ready or running task
+  uint32_t startIndex = taskIndex;
+  
+  // find next ready task
   do {
     taskIndex = (taskIndex + 1) % (taskCount);
     nextTask = &tasks[taskIndex];
-  } while (nextTask->state != TaskState::READY &&
-           nextTask->state != TaskState::RUNNING);
+    
+    // If we've checked all tasks and found none ready, set to nullptr
+    if (taskIndex == startIndex) {
+      nextTask = nullptr;
+      break;
+    }
+  } while (nextTask->state != TaskState::READY);
 }
 
 // Switch tasks
@@ -127,19 +144,25 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       "LDR r2, [r1]\n"                         // r2 = currentTask
       "STR r0, [r2]\n"                         // currentTask->stack_pointer = r0
 
-      // Set currentTask to nextTask
-      "LDR r3, =_ZN9Scheduler8nextTaskE\n" // r3 = &Scheduler::nextTask
-      "LDR r4, [r3]\n"                     // r4 = nextTask
-      "STR r4, [r1]\n"                     // currentTask = nextTask
+      // Set currentTask to nextTask and update its state
+      "LDR r3, =_ZN9Scheduler8nextTaskE\n"     // r3 = &Scheduler::nextTask
+      "LDR r4, [r3]\n"                         // r4 = nextTask
+      "CMP r4, #0\n"                           // Check if nextTask is nullptr
+      "BEQ 1f\n"                               // If nullptr, skip to end
+      "STR r4, [r1]\n"                         // currentTask = nextTask
+      "MOV r5, #1\n"                           // r5 = TaskState::RUNNING
+      "STRB r5, [r4, #8]\n"                    // nextTask->state = RUNNING
 
       // load r4-r11 from next task's stack
       "LDR r0, [r4]\n"        // r0 = nextTask->stack_pointer
       "LDMIA r0!, {r4-r11}\n" // Pop r4-r11, increment sp
       "MSR psp, r0\n"         // update PSP
+      
+      "1:\n"                  // Label for branch target
 
       // return from interrupt
       "BX LR\n"
       :
       :
-      : "r0", "r1", "r2", "r3", "memory");
+      : "r0", "r1", "r2", "r3", "r4", "r5", "memory");
 }

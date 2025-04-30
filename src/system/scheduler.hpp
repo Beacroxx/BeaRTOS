@@ -6,7 +6,6 @@
 enum class TaskState {
   UNINITIALIZED,
   READY,
-  RUNNING,
   SUSPENDED,
   TERMINATED
 };
@@ -33,9 +32,9 @@ public:
   static void start();
   static void yield();
   static void initTaskStack(void (*task)(void), uint32_t stackSize, const char *name = nullptr);
-  static void switchTasks();
+  static void taskExit();
   static void updateNextTask();
+  static void switchTasks();
 private:
   static uint32_t taskIndex;
-  static void taskExit(uint32_t *tcbptr);
 }; 

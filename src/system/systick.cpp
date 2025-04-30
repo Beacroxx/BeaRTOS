@@ -10,6 +10,6 @@ void SystemTick::init() {
 }
 
 // System tick handler
-inline void SystemTick::handler() {
+void SystemTick::handler() {
   HAL_IncTick();
 } 

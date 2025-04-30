@@ -7,7 +7,7 @@
 class Timer {
 public:
   static void init();
-  static inline void irqHandler();
+  static void irqHandler();
 
 private:
   static TIM_HandleTypeDef htim2;

@@ -50,6 +50,7 @@ void HardFault_Handler(void) { ErrorHandler::hardFault(); }
 
 // PendSV interrupt handler
 void PendSV_Handler(void) {
+  if (Scheduler::currentTask == nullptr) return; // If current task is nullptr, do nothing, no tasks to execute
   Scheduler::updateNextTask();
   Scheduler::switchTasks();
 }
@@ -85,6 +86,12 @@ void task3(void) {
   }
 }
 
+void exitingTask(void) {
+  HAL_Delay(1000);
+  printf("Exiting task\n");
+  return;
+}
+
 int main(void) {
   HAL_Init();
   SystemClock::init();
@@ -97,6 +104,7 @@ int main(void) {
   Scheduler::initTaskStack(task1, 1024, "task1");
   Scheduler::initTaskStack(task2, 1024, "task2");
   Scheduler::initTaskStack(task3, 1024, "task3");
+  Scheduler::initTaskStack(exitingTask, 1024, "exitingTask");
   Scheduler::start();
 
   while (1) {
