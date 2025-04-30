@@ -11,9 +11,9 @@ void Timer::init() {
 void Timer::initTimer2() {
   __HAL_RCC_TIM2_CLK_ENABLE();
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 32500 - 1; // 325MHz / 32500 = 10kHz
+  htim2.Init.Prescaler = 325 - 1; // 325MHz / 325 = 1MHz
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 5000 - 1; // 10kHz / 5000 = 2Hz (500ms)
+  htim2.Init.Period = 1000 - 1; // 1MHz / 1000 = 1ms
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   

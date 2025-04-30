@@ -63,31 +63,42 @@ int _write(int fd, const char *buf, int count) { return UART::write(fd, buf, cou
 
 }
 
-
 void task1(void) {
   while (1) {
     printf("Task 1\n");
-    HAL_Delay(3000);
+    Scheduler::yieldDelay(1000);
   }
 }
 
 void task2(void) {
   while (1) {
     printf("Task 2\n");
-    HAL_Delay(2000);
+    Scheduler::yieldDelay(2000);
   }
 }
 
 void task3(void) {
   while (1) {
     printf("Task 3\n");
-    HAL_Delay(1000);
+    Scheduler::yieldDelay(1000);
     GPIO::toggleLed();
   }
 }
 
+void calledTask(void) {
+  Scheduler::yieldDelay(1000);
+  printf("Called task\n");
+  while (1) {
+    // Get system diagnostics
+    printf("CPU Speed: %lu MHz\n", HAL_RCC_GetSysClockFreq() / 1000000);
+    Scheduler::yieldDelay(5000);
+  }
+}
+
 void exitingTask(void) {
-  HAL_Delay(1000);
+  Scheduler::yieldDelay(500);
+  Scheduler::initTaskStack(calledTask, 1024, "calledTask");
+  Scheduler::yieldDelay(500);
   printf("Exiting task\n");
   return;
 }

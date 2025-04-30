@@ -39,7 +39,9 @@ void Scheduler::start() {
 }
 
 // Yield to next task
-void Scheduler::yield() { __asm__ __volatile__("SVC #0"); }
+void Scheduler::yield() { 
+  SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+}
 
 // Initialize task stack
 void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
@@ -47,8 +49,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
   // look for terminated tasks to reclaim
   int reclaimed = -1;
   for (int i = 0; i < taskCount; i++) {
-    if (tasks[i].state == TaskState::TERMINATED || tasks[i].state == TaskState::UNINITIALIZED) {
-      free(tasks[i].stack);
+    if ((tasks[i].state == TaskState::TERMINATED || tasks[i].state == TaskState::UNINITIALIZED) && &tasks[i] != currentTask) {
       tasks[i].state = TaskState::UNINITIALIZED;
       reclaimed = i;
       break;
@@ -106,19 +107,21 @@ __attribute__((naked)) void Scheduler::taskExit() {
   // Get current task before any state changes
   TCB* tcb = currentTask;
 
-  printf("Task %s exited\n", tcb->name);
-  tcb->state = TaskState::UNINITIALIZED;
+  nextTask = nullptr;
+
+  tcb->state = TaskState::TERMINATED;
   memset(tcb->name, 0, sizeof(tcb->name));
   free(tcb->stack);
   tcb->stack_pointer = nullptr;
   tcb->stack = nullptr;
-  
+
   __enable_irq();
   switchTasks();
 }
 
 // Update next task
 void Scheduler::updateNextTask() {
+  __disable_irq(); 
   uint32_t startIndex = taskIndex;
   
   // find next ready task
@@ -132,9 +135,9 @@ void Scheduler::updateNextTask() {
       break;
     }
   } while (nextTask->state != TaskState::READY);
+  __enable_irq();
 }
 
-// Switch tasks
 __attribute__((naked)) void Scheduler::switchTasks() {
   __asm__ __volatile__(
       // save r4-r11 on current task's stack
@@ -150,8 +153,8 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       "CMP r4, #0\n"                           // Check if nextTask is nullptr
       "BEQ 1f\n"                               // If nullptr, skip to end
       "STR r4, [r1]\n"                         // currentTask = nextTask
-      "MOV r5, #1\n"                           // r5 = TaskState::RUNNING
-      "STRB r5, [r4, #8]\n"                    // nextTask->state = RUNNING
+      "MOV r5, #1\n"                           // r5 = TaskState::READY
+      "STRB r5, [r4, #8]\n"                    // nextTask->state = READY
 
       // load r4-r11 from next task's stack
       "LDR r0, [r4]\n"        // r0 = nextTask->stack_pointer
@@ -165,4 +168,15 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       :
       :
       : "r0", "r1", "r2", "r3", "r4", "r5", "memory");
+}
+
+void Scheduler::yieldDelay(uint32_t ms) {
+  uint32_t startTick = HAL_GetTick();
+  uint32_t targetTick = startTick + ms;
+  
+  while (HAL_GetTick() < targetTick) {
+    if (nextTask != nullptr) {  // Only yield if there are other tasks to run
+      yield();
+    }
+  }
 }

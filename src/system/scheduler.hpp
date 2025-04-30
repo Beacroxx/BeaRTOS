@@ -35,6 +35,7 @@ public:
   static void taskExit();
   static void updateNextTask();
   static void switchTasks();
+  static void yieldDelay(uint32_t ms);
 private:
   static uint32_t taskIndex;
 }; 
