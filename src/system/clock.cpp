@@ -2,7 +2,6 @@
 #include "../error/handler.hpp"
 
 void SystemClock::init() {
-  exitRun0Mode();
   configOscillator();
   configClock();
 }
@@ -11,15 +10,13 @@ void SystemClock::exitRun0Mode() {
   HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
-  while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {
-  }
+  while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) __asm__("NOP"); // Wait for VOSRDY flag
 }
 
 void SystemClock::configOscillator() {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
 
-  while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {
-  }
+  while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) __asm__("NOP"); // Wait for VOSRDY flag
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;

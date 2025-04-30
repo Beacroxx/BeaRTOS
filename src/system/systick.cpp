@@ -1,5 +1,7 @@
 #include "systick.hpp"
+#include "system/clock.hpp"
 
+// Initialize the system tick
 void SystemTick::init() {
   SysTick->LOAD = (SystemCoreClock / 1000) - 1; // 1ms interval
   SysTick->VAL = 0;
@@ -7,6 +9,7 @@ void SystemTick::init() {
   NVIC_SetPriority(SysTick_IRQn, 1);
 }
 
-void SystemTick::handler() {
+// System tick handler
+inline void SystemTick::handler() {
   HAL_IncTick();
 } 

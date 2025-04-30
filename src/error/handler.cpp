@@ -1,6 +1,7 @@
 #include "handler.hpp"
 #include "../peripherals/gpio.hpp"
 
+// Error handler
 void ErrorHandler::handle() {
   while (1) {
     GPIO::toggleLed();
@@ -8,6 +9,7 @@ void ErrorHandler::handle() {
   }
 }
 
+// Hard fault handler
 void ErrorHandler::hardFault() {
   while (1) {
     GPIO::toggleLed();

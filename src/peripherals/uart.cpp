@@ -38,6 +38,6 @@ void UART::mspInit(UART_HandleTypeDef *huart) {
 }
 
 int UART::write(int fd, const char *buf, int count) {
-  HAL_UART_Transmit(&huart1, (uint8_t *)buf, count, 1000);
+  HAL_UART_Transmit(&huart1, reinterpret_cast<uint8_t *>(const_cast<char *>(buf)), count, 1000);
   return count;
 } 

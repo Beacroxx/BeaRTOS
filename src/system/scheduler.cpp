@@ -1,37 +1,49 @@
 #include "system/scheduler.hpp"
 #include "error/handler.hpp"
 #include <cstdio>
+#include <cstring>
 
+// Random character array
+char arng[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+// Scheduler variables
 TCB *Scheduler::tasks = nullptr;
 TCB *Scheduler::currentTask = nullptr;
 TCB *Scheduler::nextTask = nullptr;
 uint32_t Scheduler::taskIndex = 0;
 uint32_t Scheduler::taskCount = 0;
 
+// Initialize the scheduler
 void Scheduler::init() {
-  tasks = (TCB *)malloc(sizeof(TCB)); // allocate just one TCB for dummy task
-  Scheduler::initTaskStack([]() {
-    ErrorHandler::hardFault(); // If this task is called, there is a problem
-  }, 32);
-  currentTask = nextTask = &tasks[0];
+  tasks = static_cast<TCB *>(malloc(sizeof(TCB))); // allocate just one TCB for dummy task
+  Scheduler::initTaskStack(
+      []() {
+        ErrorHandler::hardFault(); // If this task is called, there is a problem
+      }, 
+      32, "dummy");
+  currentTask = nextTask = &tasks[0]; // Set current and next task to dummy task
 }
 
+// Start the scheduler
 void Scheduler::start() {
   // Set initial PSP to the first task's stack
-  __asm__ __volatile__("LDR r0, =_ZN9Scheduler11currentTaskE\n" // r0 = &Scheduler::currentTask
-                       "LDR r0, [r0]\n"                         // r0 = currentTask
-                       "LDR r0, [r0]\n"                         // r0 = currentTask->stack_pointer
-                       "MSR psp, r0\n"                          // Set PSP to task's stack
-                       "MOV r0, #2\n"                           // r0 = 2 (privileged thread mode using PSP)
-                       "MSR control, r0\n"                      // Set CONTROL register
-                       "ISB\n"                                  // Instruction Synchronization Barrier
-                       "BX lr\n");
+  __asm__ __volatile__(
+      "LDR r0, =_ZN9Scheduler11currentTaskE\n" // r0 = &Scheduler::currentTask
+      "LDR r0, [r0]\n"                         // r0 = currentTask
+      "LDR r0, [r0]\n"    // r0 = currentTask->stack_pointer
+      "MSR psp, r0\n"     // Set PSP to task's stack
+      "MOV r0, #2\n"      // r0 = 2 (privileged thread mode using PSP)
+      "MSR control, r0\n" // Set CONTROL register
+      "ISB\n"             // Instruction Synchronization Barrier
+      "BX lr\n");
 }
 
+// Yield to next task
 void Scheduler::yield() { __asm__ __volatile__("SVC #0"); }
 
-void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize) {
-
+// Initialize task stack
+void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
+                              const char *name) {
   // look for terminated tasks to reclaim
   int reclaimed = -1;
   for (int i = 0; i < taskCount; i++) {
@@ -47,15 +59,15 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize) {
 
   // increase tasks array only if there are no uninitialized tasks to reclaim
   if (reclaimed == -1) {
-    tasks = (TCB *)realloc(tasks, sizeof(TCB) * (taskCount + 1));
+    tasks = static_cast<TCB *>(realloc(tasks, sizeof(TCB) * (taskCount + 1)));
     tcb = &tasks[taskCount];
     taskCount++;
   } else {
     tcb = &tasks[reclaimed];
   }
 
-  // Allocate stack 
-  tcb->stack = (uint32_t *)malloc(stackSize * sizeof(uint32_t));
+  // Allocate stack
+  tcb->stack = static_cast<uint32_t *>(malloc(stackSize * sizeof(uint32_t)));
   if (tcb->stack == nullptr) {
     ErrorHandler::hardFault(); // If this task is called, there is a problem
   }
@@ -70,7 +82,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize) {
   *(--sp) = 0;                  // R3
   *(--sp) = 0;                  // R2
   *(--sp) = 0;                  // R1
-  *(--sp) = (uint32_t)tcb;     // R0 (pointer to TCB) for taskExit
+  *(--sp) = (uint32_t)tcb;      // R0 (pointer to TCB) for taskExit
 
   // Push space for callee-saved registers (R4–R11)
   for (int i = 0; i < 8; ++i)
@@ -78,23 +90,34 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize) {
 
   tcb->stack_pointer = sp; // Set initial stack pointer
   tcb->state = TaskState::READY;
+
+  // Generate random name if name is nullptr
+  if (name == nullptr) {
+    for (int i = 0; i < 16; i++) 
+      tcb->name[i] = arng[rand() % (sizeof(arng) - 1)];
+  } else
+    strcpy(tcb->name, name);
 }
 
+// Task exit handler
 void Scheduler::taskExit(uint32_t *tcbptr) {
-  TCB *tcb = (TCB *)tcbptr;
-  free(tcb->stack);
-  tcb->state = TaskState::TERMINATED;
-  printf("Task exited\n");
+  TCB *tcb = reinterpret_cast<TCB *>(tcbptr);
+  free(tcb->stack);                   // Free stack
+  tcb->state = TaskState::TERMINATED; // Set task state to TERMINATED
+  printf("Task %s exited\n", tcb->name);
 }
 
+// Update next task
 void Scheduler::updateNextTask() {
   // find next ready or running task
   do {
     taskIndex = (taskIndex + 1) % (taskCount);
     nextTask = &tasks[taskIndex];
-  } while (nextTask->state != TaskState::READY && nextTask->state != TaskState::RUNNING);
+  } while (nextTask->state != TaskState::READY &&
+           nextTask->state != TaskState::RUNNING);
 }
 
+// Switch tasks
 __attribute__((naked)) void Scheduler::switchTasks() {
   __asm__ __volatile__(
       // save r4-r11 on current task's stack
@@ -106,8 +129,8 @@ __attribute__((naked)) void Scheduler::switchTasks() {
 
       // Set currentTask to nextTask
       "LDR r3, =_ZN9Scheduler8nextTaskE\n" // r3 = &Scheduler::nextTask
-      "LDR r4, [r3]\n"                      // r4 = nextTask
-      "STR r4, [r1]\n"                      // currentTask = nextTask
+      "LDR r4, [r3]\n"                     // r4 = nextTask
+      "STR r4, [r1]\n"                     // currentTask = nextTask
 
       // load r4-r11 from next task's stack
       "LDR r0, [r4]\n"        // r0 = nextTask->stack_pointer
@@ -117,7 +140,6 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       // return from interrupt
       "BX LR\n"
       :
-      : 
-      : "memory"
-      );
+      :
+      : "r0", "r1", "r2", "r3", "memory");
 }

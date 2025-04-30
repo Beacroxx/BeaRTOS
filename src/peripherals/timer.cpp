@@ -27,6 +27,6 @@ void Timer::initTimer2() {
   HAL_TIM_Base_Start_IT(&htim2);
 }
 
-void Timer::irqHandler() {
+inline void Timer::irqHandler() {
   HAL_TIM_IRQHandler(&htim2);
 } 

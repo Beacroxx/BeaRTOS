@@ -35,23 +35,31 @@
 #include <stdio.h>
 
 extern "C" {
+
+// SystemTick interrupt handler
 void SysTick_Handler(void) {
   SystemTick::handler();
   SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;  // Trigger PendSV interrupt
 }
 
+// Timer2 interrupt handler
 void TIM2_IRQHandler(void) { Timer::irqHandler(); }
 
+// HardFault interrupt handler
 void HardFault_Handler(void) { ErrorHandler::hardFault(); }
 
+// PendSV interrupt handler
 void PendSV_Handler(void) {
   Scheduler::updateNextTask();
   Scheduler::switchTasks();
 }
 
+// UART MSP Init
 void HAL_UART_MspInit(UART_HandleTypeDef *huart) { UART::mspInit(huart); }
 
+// Redirect printf to UART
 int _write(int fd, const char *buf, int count) { return UART::write(fd, buf, count); }
+
 }
 
 
@@ -86,9 +94,9 @@ int main(void) {
   UART::init();
 
   Scheduler::init();
-  Scheduler::initTaskStack(task1, 1024);
-  Scheduler::initTaskStack(task2, 1024);
-  Scheduler::initTaskStack(task3, 1024);
+  Scheduler::initTaskStack(task1, 1024, "task1");
+  Scheduler::initTaskStack(task2, 1024, "task2");
+  Scheduler::initTaskStack(task3, 1024, "task3");
   Scheduler::start();
 
   while (1) {

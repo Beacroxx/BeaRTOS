@@ -6,5 +6,5 @@
 class SystemTick {
 public:
   static void init();
-  static void handler();
+  static inline void handler();
 }; 
