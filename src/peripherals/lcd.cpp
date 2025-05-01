@@ -1,74 +1,80 @@
 #include "lcd.hpp"
 
-static uint8_t lcd_data[16];
+// Static member initialization
+uint8_t LCD::lcd_data[16];
+uint8_t LCD::framebuffer[FRAMEBUFFER_SIZE];
+bool LCD::dma_busy = false;
 
 void LCD::writeReg(uint8_t reg, uint8_t* data, uint8_t length) {
-  LCD_CS_RESET;  // Ensure CS is low before starting
+  waitForDMA();
+  LCD_CS_RESET;
   LCD_RS_RESET;
   HAL_SPI_Transmit(SPI_Drv, &reg, 1, 100);
   LCD_RS_SET;
   if (length > 0) {
     HAL_SPI_Transmit(SPI_Drv, data, length, 500);
   }
-  LCD_CS_SET;  // Release CS after transmission
+  LCD_CS_SET;
 }
 
 void LCD::readReg(uint8_t reg, uint8_t* data) {
-  LCD_CS_RESET;  // Ensure CS is low before starting
+  waitForDMA();
+  LCD_CS_RESET;
   LCD_RS_RESET;
   HAL_SPI_Transmit(SPI_Drv, &reg, 1, 100);
   LCD_RS_SET;
   HAL_SPI_Receive(SPI_Drv, data, 1, 500);
-  LCD_CS_SET;  // Release CS after transmission
+  LCD_CS_SET;
 }
 
 void LCD::sendData(uint8_t* data, uint8_t length) {
-  LCD_CS_RESET;  // Ensure CS is low before starting
+  waitForDMA();
+  LCD_CS_RESET;
   HAL_SPI_Transmit(SPI_Drv, data, length, 500);
-  LCD_CS_SET;  // Release CS after transmission
+  LCD_CS_SET;
 }
 
 void LCD::recvData(uint8_t* data, uint8_t length) {
-  LCD_CS_RESET;  // Ensure CS is low before starting
+  waitForDMA();
+  LCD_CS_RESET;
   HAL_SPI_Receive(SPI_Drv, data, length, 500);
-  LCD_CS_SET;  // Release CS after transmission
+  LCD_CS_SET;
+}
+
+void LCD::waitForDMA() {
+  while (dma_busy) {
+    Scheduler::yield();
+  }
 }
 
 void LCD::init() {
   // Initialize CS and RS pins
   LCD_CS_SET;
   LCD_RS_SET;
-  Scheduler::yieldDelay(100);  // Initial delay for power stabilization
+  Scheduler::yieldDelay(100);
 
   // Initialize Brightness Timer
   HAL_TIMEx_PWMN_Start(LCD_Brightness_timer, LCD_Brightness_channel);
-  SetBrightness(100);  // Set initial brightness
+  setBrightness(100);
 
   // Software Reset
   writeReg(ST7735_SW_RESET, nullptr, 0);
-  Scheduler::yieldDelay(150);  // Increased delay after reset
+  Scheduler::yieldDelay(150);
   writeReg(ST7735_SW_RESET, nullptr, 0);
-  Scheduler::yieldDelay(150);  // Increased delay after reset
+  Scheduler::yieldDelay(150);
 
   // Sleep out
   lcd_data[0] = 0;
   writeReg(ST7735_SLEEP_OUT, lcd_data, 1);
-  Scheduler::yieldDelay(150);  // Wait for sleep out to complete
+  Scheduler::yieldDelay(150);
 
-  // Frame rate ctl, normal mode
+  // Frame rate control
   lcd_data[0] = 0x01; lcd_data[1] = 0x2C; lcd_data[2] = 0x2D;
   writeReg(ST7735_FRAME_RATE_CTRL1, lcd_data, 3);
-
-  // Frame rate ctl, idle mode
-  lcd_data[0] = 0x01; lcd_data[1] = 0x2C; lcd_data[2] = 0x2D;
   writeReg(ST7735_FRAME_RATE_CTRL2, lcd_data, 3);
-
-  // Frame rate ctl, partial mode
-  lcd_data[0] = 0x01; lcd_data[1] = 0x2C; lcd_data[2] = 0x2D;
-  lcd_data[3] = 0x01; lcd_data[4] = 0x2C; lcd_data[5] = 0x2D;
   writeReg(ST7735_FRAME_RATE_CTRL3, lcd_data, 6);
 
-  // Display inversion ctl
+  // Display inversion control
   lcd_data[0] = 0x07;
   writeReg(ST7735_FRAME_INVERSION_CTRL, lcd_data, 1);
 
@@ -92,49 +98,43 @@ void LCD::init() {
   writeReg(ST7735_DISPLAY_INVERSION_OFF, nullptr, 0);
 
   // Color mode - 16-bit RGB565
-  lcd_data[0] = 0x05;  // 16-bit color
+  lcd_data[0] = 0x05;
   writeReg(ST7735_COLOR_MODE, lcd_data, 1);
 
   // Memory access control - RGB order, normal orientation
-  // MADCTL bits:
-  // MY: Row address order (0: top to bottom, 1: bottom to top)
-  // MX: Column address order (0: left to right, 1: right to left)
-  // MV: Row/Column exchange (0: normal, 1: exchange)
-  // ML: Vertical refresh order (0: top to bottom, 1: bottom to top)
-  // RGB: RGB/BGR order (0: RGB, 1: BGR)
-  // MH: Horizontal refresh order (0: left to right, 1: right to left)
-  lcd_data[0] = 0xA0;  // Landscape mode rotated 180 degrees (MY=1, MX=1, MV=1)
+  lcd_data[0] = 0xA0;  // Landscape mode rotated 180 degrees
   writeReg(ST7735_MADCTL, lcd_data, 1);
 
   // Display inversion on
   writeReg(ST7735_DISPLAY_INVERSION_ON, nullptr, 0);
 
   // Set display window to full screen
-  // Column address set (CASET)
   lcd_data[0] = 0; lcd_data[1] = 0; lcd_data[2] = 0; lcd_data[3] = WIDTH - 1;
   writeReg(ST7735_CASET, lcd_data, 4);
   
-  // Row address set (RASET)
   lcd_data[0] = 0; lcd_data[1] = 0; lcd_data[2] = 0; lcd_data[3] = HEIGHT - 1;
   writeReg(ST7735_RASET, lcd_data, 4);
 
   // Main screen on
   lcd_data[0] = 0x00;
   writeReg(ST7735_DISPLAY_ON, lcd_data, 1);
-  Scheduler::yieldDelay(150);  // Wait for display to turn on
+  Scheduler::yieldDelay(150);
+
+  // Clear framebuffer
+  for (uint16_t i = 0; i < FRAMEBUFFER_SIZE; i += 2) {
+    framebuffer[i] = 0x00;
+    framebuffer[i + 1] = 0x00;
+  }
 }
 
 void LCD::setDisplayWindow(uint8_t x, uint8_t y, uint8_t width, uint8_t height) {
   // Add calibration offsets for 0.96" ST7735 display in landscape mode rotated 180 degrees
-  // Using HannStar panel offsets (Xpos += 1, Ypos += 26)
   x += 1;
   y += 26;
   
-  // Column address set (CASET)
   lcd_data[0] = 0; lcd_data[1] = x; lcd_data[2] = 0; lcd_data[3] = x + width - 1;
   writeReg(ST7735_CASET, lcd_data, 4);
   
-  // Row address set (RASET)
   lcd_data[0] = 0; lcd_data[1] = y; lcd_data[2] = 0; lcd_data[3] = y + height - 1;
   writeReg(ST7735_RASET, lcd_data, 4);
 }
@@ -162,7 +162,7 @@ void LCD::displayOff() {
   writeReg(ST7735_MADCTL, lcd_data, 1);
 }
 
-void LCD::SetBrightness(uint32_t brightness) {
+void LCD::setBrightness(uint32_t brightness) {
   __HAL_TIM_SetCompare(LCD_Brightness_timer, LCD_Brightness_channel, brightness);
 }
 
@@ -171,34 +171,25 @@ uint32_t LCD::getBrightness() {
 }
 
 void LCD::setCursor(uint8_t x, uint8_t y) {
-  // Set column address (CASET)
   lcd_data[0] = 0; lcd_data[1] = x; lcd_data[2] = 0; lcd_data[3] = x;
   writeReg(ST7735_CASET, lcd_data, 4);
   
-  // Set row address (RASET)
   lcd_data[0] = 0; lcd_data[1] = y; lcd_data[2] = 0; lcd_data[3] = y;
   writeReg(ST7735_RASET, lcd_data, 4);
   
-  // Start writing to RAM
   writeReg(ST7735_WRITE_RAM, nullptr, 0);
 }
 
 void LCD::fillRGBRect(uint8_t x, uint8_t y, uint8_t* data, uint8_t width, uint8_t height) {
   if ((x + width) > WIDTH || (y + height) > HEIGHT) return;
   
-  // Set display window for the entire rectangle
-  setDisplayWindow(x, y, width, height);
-  
-  // Start writing to RAM
-  writeReg(ST7735_WRITE_RAM, nullptr, 0);
-  
-  // Send color data for each pixel
-  for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
-    uint16_t color = ((uint16_t*)data)[i];
-    uint8_t color_data[2];
-    color_data[0] = color & 0xFF;  // LSB first
-    color_data[1] = color >> 8;    // MSB second
-    sendData(color_data, 2);
+  for (uint8_t row = 0; row < height; row++) {
+    for (uint8_t col = 0; col < width; col++) {
+      uint16_t pixel = ((uint16_t*)data)[row * width + col];
+      uint16_t fb_index = ((y + row) * WIDTH + (x + col)) * 2;
+      framebuffer[fb_index] = pixel & 0xFF;
+      framebuffer[fb_index + 1] = pixel >> 8;
+    }
   }
 }
 
@@ -220,16 +211,16 @@ void LCD::drawChar(uint16_t x, uint16_t y, char c, uint8_t size) {
   // Process each byte in the font data
   for (uint8_t t = 0; t < size; t++) {
     if (size == 12) {
-      temp = ascii_1206[c][t];  // Use 12x6 font
+      temp = ascii_1206[c][t];
     } else {
-      temp = ascii_1608[c][t];  // Use 16x8 font
+      temp = ascii_1608[c][t];
     }
 
     // Process each bit in the byte
     for (uint8_t t1 = 0; t1 < 8; t1++) {
       if (temp & 0x80) {
-        uint8_t col = t / 2;  // Each pair of bytes represents a column
-        uint8_t row = t1 + ((t % 2) * 8);  // First byte of pair is top 8 rows, second byte is bottom 4/8 rows
+        uint8_t col = t / 2;
+        uint8_t row = t1 + ((t % 2) * 8);
         if (row < font_height) {
           write[row][col] = POINT_COLOR;
         }
@@ -250,81 +241,46 @@ void LCD::drawString(uint8_t x, uint8_t y, uint8_t size, char* str) {
 }
 
 void LCD::setPixel(uint8_t x, uint8_t y, uint16_t color) {
-  color = (uint16_t)((uint16_t)color << 8);
-  color |= (uint16_t)((uint16_t)(color >> 8));
-
   if (x >= WIDTH || y >= HEIGHT) return;
 
-  setCursor(x, y);
-  sendData((uint8_t*)&color, 2);
+  uint16_t fb_index = (y * WIDTH + x) * 2;
+  framebuffer[fb_index] = color & 0xFF;
+  framebuffer[fb_index + 1] = color >> 8;
 }
 
 void LCD::drawHLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color) {
   if ((x + length) > WIDTH) return;
   
-  // Set column address (CASET)
-  lcd_data[0] = 0; lcd_data[1] = x; lcd_data[2] = 0; lcd_data[3] = x + length - 1;
-  writeReg(ST7735_CASET, lcd_data, 4);
-  
-  // Set row address (RASET)
-  lcd_data[0] = 0; lcd_data[1] = y; lcd_data[2] = 0; lcd_data[3] = y;
-  writeReg(ST7735_RASET, lcd_data, 4);
-  
-  // Start writing to RAM
-  writeReg(ST7735_WRITE_RAM, nullptr, 0);
-  
-  // Prepare color data
-  uint8_t color_data[2];
-  color_data[0] = color >> 8;
-  color_data[1] = color & 0xFF;
-  
-  // Send color data for each pixel
   for (uint8_t i = 0; i < length; i++) {
-    sendData(color_data, 2);
+    setPixel(x + i, y, color);
   }
 }
 
 void LCD::drawVLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color) {
   if ((y + length) > HEIGHT) return;
   
-  // Set column address (CASET)
-  lcd_data[0] = 0; lcd_data[1] = x; lcd_data[2] = 0; lcd_data[3] = x;
-  writeReg(ST7735_CASET, lcd_data, 4);
-  
-  // Set row address (RASET)
-  lcd_data[0] = 0; lcd_data[1] = y; lcd_data[2] = 0; lcd_data[3] = y + length - 1;
-  writeReg(ST7735_RASET, lcd_data, 4);
-  
-  // Start writing to RAM
-  writeReg(ST7735_WRITE_RAM, nullptr, 0);
-  
-  // Prepare color data
-  uint8_t color_data[2];
-  color_data[0] = color >> 8;
-  color_data[1] = color & 0xFF;
-  
-  // Send color data for each pixel
   for (uint8_t i = 0; i < length; i++) {
-    sendData(color_data, 2);
+    setPixel(x, y + i, color);
   }
 }
 
 void LCD::fillRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t color) {
   if ((x + width) > WIDTH || (y + height) > HEIGHT) return;
   
-  // Set display window
-  setDisplayWindow(x, y, width, height);
+  for (uint8_t row = 0; row < height; row++) {
+    for (uint8_t col = 0; col < width; col++) {
+      setPixel(x + col, y + row, color);
+    }
+  }
+}
+
+void LCD::update() {
+  waitForDMA();
   
-  // Start writing to RAM
+  setDisplayWindow(0, 0, WIDTH, HEIGHT);
   writeReg(ST7735_WRITE_RAM, nullptr, 0);
   
-  // Prepare color data - swap bytes for RGB565
-  uint8_t color_data[2];
-  color_data[0] = color & 0xFF;  // LSB first
-  color_data[1] = color >> 8;    // MSB second
-  
-  // Send color data for each pixel
-  for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
-    sendData(color_data, 2);
-  }
+  LCD_CS_RESET;
+  dma_busy = true;
+  HAL_SPI_Transmit_DMA(SPI_Drv, framebuffer, FRAMEBUFFER_SIZE);
 }

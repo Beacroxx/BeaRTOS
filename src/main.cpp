@@ -60,6 +60,21 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart) { UART::mspInit(huart); }
 // Redirect printf to UART
 int _write(int fd, const char *buf, int count) { return UART::write(fd, buf, count); }
 
+// DMA interrupt handler
+void DMA1_Stream0_IRQHandler(void) {
+  HAL_DMA_IRQHandler(&SPI::hdma_spi4_tx);
+}
+
+void SPI4_IRQHandler(void) {
+  HAL_SPI_IRQHandler(&SPI::hspi4);
+}
+
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
+  if (hspi->Instance == SPI4) {
+    SPI::dmaTxCompleteCallback();
+  }
+}
+
 }
 
 void task1(void) {
@@ -75,6 +90,7 @@ void task2(void) {
   uint32_t start = HAL_GetTick();
   for (int i = 0; i < 10; i++) {
     LCD::fillRect(0, 0, LCD::WIDTH, LCD::HEIGHT, BLACK);
+    LCD::update();
   }
   uint32_t end = HAL_GetTick();
   uint32_t dt = (end - start) / 10;
@@ -93,11 +109,13 @@ void task2(void) {
   LCD::drawString(0, 24, 12, string);
   sprintf(string, "Frame time: %lu ms (%lu Hz)", dt, 1000 / dt);
   LCD::drawString(0, 36, 12, string);
+  LCD::update();
 
   while (1) {
     // draw the amount of tasks
     sprintf(string, "Tasks: %d", Scheduler::taskCount);
     LCD::drawString(0, 48, 12, string);
+    LCD::update();
     Scheduler::yieldDelay(500);
   }
 }

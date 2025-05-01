@@ -98,30 +98,47 @@
 
 class LCD {
 public:
+  // Display dimensions
+  static constexpr uint8_t HEIGHT = 80;
+  static constexpr uint8_t WIDTH = 160;
+
+  // Display control
   static void init();
-  static void setDisplayWindow(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
-  static void readID(uint32_t* id);
   static void displayOn();
   static void displayOff();
-  static void SetBrightness(uint32_t brightness);
+  static void setBrightness(uint32_t brightness);
   static uint32_t getBrightness();
+  static void readID(uint32_t* id);
+
+  // Drawing functions
   static void setCursor(uint8_t x, uint8_t y);
-  static void fillRGBRect(uint8_t x, uint8_t y, uint8_t* data, uint8_t width, uint8_t height);
-  static void drawChar(uint16_t x, uint16_t y, char c, uint8_t size);
-  static void drawString(uint8_t x, uint8_t y, uint8_t size, char* str);
   static void setPixel(uint8_t x, uint8_t y, uint16_t color);
   static void drawHLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color);
   static void drawVLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color);
   static void fillRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t color);
+  static void drawChar(uint16_t x, uint16_t y, char c, uint8_t size);
+  static void drawString(uint8_t x, uint8_t y, uint8_t size, char* str);
+  static void update();
 
-  static constexpr uint8_t HEIGHT = 80;
-  static constexpr uint8_t WIDTH = 160;
+  // DMA status
+  static bool dma_busy;
+
 private:
+  // Constants
   static constexpr uint16_t POINT_COLOR = 0xFFFF;
   static constexpr uint16_t BACK_COLOR = 0x0000;
+  static constexpr uint16_t FRAMEBUFFER_SIZE = WIDTH * HEIGHT * 2; // 2 bytes per pixel
 
+  // Buffers
+  static uint8_t lcd_data[16];
+  static uint8_t framebuffer[FRAMEBUFFER_SIZE];
+
+  // Low-level functions
   static void writeReg(uint8_t reg, uint8_t* data, uint8_t length);
   static void readReg(uint8_t reg, uint8_t* data);
   static void sendData(uint8_t* data, uint8_t length);
   static void recvData(uint8_t* data, uint8_t length);
+  static void waitForDMA();
+  static void setDisplayWindow(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+  static void fillRGBRect(uint8_t x, uint8_t y, uint8_t* data, uint8_t width, uint8_t height);
 };

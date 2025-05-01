@@ -6,6 +6,10 @@
 class SPI {
 public:
   static void init();
+  static void dmaTxCompleteCallback();
   static SPI_HandleTypeDef hspi4;
+  static DMA_HandleTypeDef hdma_spi4_tx;
+private:
+  static void initDMA();
 };
 
