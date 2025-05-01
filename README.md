@@ -17,6 +17,7 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
   - RGB565 color support
   - Display window control
   - Brightness control
+  - DMA-accelerated SPI communication for improved performance
 - A simple LED blinky example
 - Cooperative yield delay for efficient task waiting
 
@@ -69,6 +70,12 @@ The RTOS includes a yield delay mechanism that allows tasks to wait efficiently:
 - Other tasks continue running during the delay period
 - The scheduler remains preemptive, but tasks can cooperate for better resource utilization
 - Yield delays are implemented using the system tick timer for precise timing
+
+The LCD display uses DMA for efficient data transfer:
+- SPI4 is configured with DMA for high-speed data transfer
+- DMA transfers are handled automatically in the background
+- Tasks can yield while waiting for DMA transfers to complete
+- Interrupt handlers manage DMA transfer completion
 
 ## License
 
