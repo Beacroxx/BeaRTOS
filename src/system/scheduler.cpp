@@ -1,5 +1,6 @@
 #include "system/scheduler.hpp"
 #include "error/handler.hpp"
+#include "system/memory.hpp"
 #include <cstdio>
 #include <cstring>
 
@@ -16,7 +17,7 @@ uint32_t Scheduler::taskCount = 0;
 // Initialize the scheduler
 void Scheduler::init() {
   // allocate a dummy task that will get overwritten by the first task
-  tasks = static_cast<TCB *>(malloc(sizeof(TCB))); // allocate just one TCB for dummy task
+  tasks = static_cast<TCB *>(Memory::malloc(sizeof(TCB))); // allocate just one TCB for dummy task
   currentTask = nextTask = &tasks[0]; // Set current and next task to dummy task
 }
 
@@ -44,8 +45,7 @@ void Scheduler::yield() {
 }
 
 // Initialize task stack
-void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
-                              const char *name) {
+void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char *name) {
   // look for terminated tasks to reclaim
   int reclaimed = -1;
   for (int i = 0; i < taskCount; i++) {
@@ -60,7 +60,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
 
   // increase tasks array only if there are no uninitialized tasks to reclaim
   if (reclaimed == -1) {
-    tasks = static_cast<TCB *>(realloc(tasks, sizeof(TCB) * (taskCount + 1)));
+    tasks = static_cast<TCB *>(Memory::realloc(tasks, sizeof(TCB) * (taskCount + 1)));
     tcb = &tasks[taskCount];
     taskCount++;
   } else {
@@ -68,7 +68,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize,
   }
 
   // Allocate stack
-  tcb->stack = static_cast<uint32_t *>(malloc(stackSize * sizeof(uint32_t)));
+  tcb->stack = static_cast<uint32_t *>(Memory::malloc(stackSize * sizeof(uint32_t)));
   if (tcb->stack == nullptr) {
     ErrorHandler::hardFault(); // If this task is called, there is a problem
   }
@@ -111,7 +111,7 @@ __attribute__((naked)) void Scheduler::taskExit() {
 
   tcb->state = TaskState::TERMINATED;
   memset(tcb->name, 0, sizeof(tcb->name));
-  free(tcb->stack);
+  Memory::free(tcb->stack);
   tcb->stack_pointer = nullptr;
   tcb->stack = nullptr;
 

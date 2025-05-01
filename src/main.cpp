@@ -33,6 +33,7 @@
 #include "system/systick.hpp"
 #include "peripherals/lcd.hpp"
 #include "peripherals/spi.hpp"
+#include "system/memory.hpp"
 
 #include <stdio.h>
 
@@ -94,27 +95,32 @@ void task2(void) {
   }
   uint32_t end = HAL_GetTick();
   uint32_t dt = (end - start) / 10;
-  uint32_t id;
-  LCD::readID(&id);
-  char string[13];
-  sprintf(string, "LCD ID: 0x%06lX", id);
-  LCD::drawString(0, 0, 12, string);
-  sprintf(string, "CPU: %lu MHz", HAL_RCC_GetSysClockFreq() / 1000000);
-  LCD::drawString(0, 12, 12, string);
   // draw spi clock for the lcd
   PLL2_ClocksTypeDef PLL2_Clocks;
   HAL_RCCEx_GetPLL2ClockFreq(&PLL2_Clocks);
   uint32_t spi_freq = PLL2_Clocks.PLL2_Q_Frequency;
-  sprintf(string, "SPI: %lu MHz", spi_freq / 1000000 / 2); // prescaler is 2
-  LCD::drawString(0, 24, 12, string);
+  char string[32];
+  sprintf(string, "CPU: %lu MHz, SPI: %lu MHz", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2); // prescaler is 2
+  LCD::drawString(0, 0, 12, string);
   sprintf(string, "Frame time: %lu ms (%lu Hz)", dt, 1000 / dt);
-  LCD::drawString(0, 36, 12, string);
+  LCD::drawString(0, 12, 12, string);
   LCD::update();
 
   while (1) {
-    // draw the amount of tasks
-    sprintf(string, "Tasks: %d", Scheduler::taskCount);
+    // Get memory statistics
+    Memory::MemoryRegion flash, ram;
+    uint32_t heapUsed, heapFree;
+    Memory::getStats(flash, ram, heapUsed, heapFree);
+
+    // Draw memory usage
+    sprintf(string, "Flash: %lu/%lu KB", flash.used / 1024, flash.size / 1024);
+    LCD::drawString(0, 24, 12, string);
+    sprintf(string, "RAM: %lu/%lu KB", ram.used / 1024, ram.size / 1024);
+    LCD::drawString(0, 36, 12, string);
+    sprintf(string, "Heap: %lu/%lu KB", heapUsed / 1024, (heapUsed + heapFree) / 1024);
     LCD::drawString(0, 48, 12, string);
+    sprintf(string, "Tasks: %d", Scheduler::taskCount);
+    LCD::drawString(0, 60, 12, string);
     LCD::update();
     Scheduler::yieldDelay(500);
   }
@@ -155,6 +161,7 @@ int main(void) {
   Timer::init();
   UART::init();
   LCD::init();
+  Memory::init();  // Initialize memory tracking
 
   Scheduler::init();
   Scheduler::initTaskStack(task1, 1024, "task1");

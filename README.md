@@ -6,13 +6,26 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
 
 - A basic RTOS that can run multiple tasks with dynamic memory allocation
 - Automatic task memory reclamation for terminated tasks
-- GPIO controls for your LEDs and buttons
+- Memory and heap monitoring with:
+  - Flash memory usage tracking
+  - RAM usage tracking
+  - Heap allocation tracking
+  - Memory region statistics
+  - Automatic memory leak detection
+  - Memory usage display on LCD
+- GPIO controls for your LEDs and buttons:
+  - LED toggle and state control
+  - High-speed output configuration
+  - Hardware flow control
 - UART for sending messages to your computer
 - Timer management for timing things
 - System clock setup with optimized CPU frequency
 - Error handling when things go wrong
 - ST7735 LCD display support with:
-  - Text rendering (12x6 and 16x8 fonts)
+  - Text rendering with two font sizes:
+    - 12x6 pixel font for compact display
+    - 16x8 pixel font for better readability
+  - Full ASCII character set support
   - Graphics primitives (lines, rectangles, pixels)
   - RGB565 color support
   - Display window control
@@ -20,6 +33,13 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
   - DMA-accelerated SPI communication for improved performance
 - A simple LED blinky example
 - Cooperative yield delay for efficient task waiting
+- SPI communication with:
+  - DMA-accelerated transfers
+  - Interrupt-driven operation
+  - Configurable baud rates
+  - Hardware flow control
+  - CRC calculation support
+  - FIFO threshold configuration
 
 ## What You'll Need
 
@@ -54,6 +74,9 @@ There are four example tasks running:
   - SPI clock speed
   - Frame time and FPS
   - Current number of running tasks
+  - Flash memory usage
+  - RAM usage
+  - Heap allocation status
 - Task 3: Prints "Task 3" and toggles an LED every second
 - Task 4: A task that demonstrates task creation and termination:
   - Creates a new task that displays system diagnostics
@@ -64,6 +87,17 @@ The scheduler automatically manages task memory:
 - Memory is automatically reclaimed when tasks terminate
 - The system reuses memory from terminated tasks for new tasks
 - Each task gets a unique name (randomly generated if not specified)
+- Memory usage is tracked and displayed in real-time
+- Heap allocations are monitored for potential memory leaks
+- Memory regions (Flash, RAM, Heap) are tracked and reported
+
+The memory monitoring system provides:
+- Real-time tracking of Flash memory usage
+- RAM usage monitoring including data and BSS sections
+- Heap allocation tracking with used and free space
+- Memory region statistics for system optimization
+- Automatic memory leak detection through allocation tracking
+- Visual feedback through the LCD display
 
 The RTOS includes a yield delay mechanism that allows tasks to wait efficiently:
 - Tasks can voluntarily yield their execution time while waiting
