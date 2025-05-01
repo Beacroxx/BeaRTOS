@@ -146,7 +146,7 @@ void calledTask(void) {
 
 void exitingTask(void) {
   Scheduler::yieldDelay(500);
-  Scheduler::initTaskStack(calledTask, 1024, "calledTask");
+  Scheduler::initTaskStack(calledTask, 128, "calledTask");
   Scheduler::yieldDelay(500);
   printf("Exiting task\n");
   return;
@@ -164,10 +164,10 @@ int main(void) {
   Memory::init();  // Initialize memory tracking
 
   Scheduler::init();
-  Scheduler::initTaskStack(task1, 1024, "task1");
-  Scheduler::initTaskStack(task2, 1024, "task2");
-  Scheduler::initTaskStack(task3, 1024, "task3");
-  Scheduler::initTaskStack(exitingTask, 1024, "exitingTask");
+  Scheduler::initTaskStack(task1, 128, "task1");
+  Scheduler::initTaskStack(task2, 128, "task2");
+  Scheduler::initTaskStack(task3, 128, "task3");
+  Scheduler::initTaskStack(exitingTask, 128, "exitingTask");
   Scheduler::start();
 
   while (1) {
