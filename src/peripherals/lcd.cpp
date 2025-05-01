@@ -55,7 +55,7 @@ void LCD::init() {
 
   // Initialize Brightness Timer
   HAL_TIMEx_PWMN_Start(LCD_Brightness_timer, LCD_Brightness_channel);
-  setBrightness(100);
+  setBrightness(999); // Max brightness
 
   // Software Reset
   writeReg(ST7735_SW_RESET, nullptr, 0);
