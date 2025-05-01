@@ -26,7 +26,7 @@ void SystemClock::configOscillator() {
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 
   RCC_OscInitStruct.PLL.PLLM = 5; // 5 MHz
-  RCC_OscInitStruct.PLL.PLLN = 160; // 800 MHz
+  RCC_OscInitStruct.PLL.PLLN = 150; // 800 MHz
   RCC_OscInitStruct.PLL.PLLP = 1; // 800 MHz (SYSCLK)
   RCC_OscInitStruct.PLL.PLLQ = 2; // 400 MHz (D1PCLK1)
   RCC_OscInitStruct.PLL.PLLR = 1; // 800 MHz (D3PCLK1)
