@@ -2,7 +2,8 @@
 
 // Static member initialization
 uint8_t LCD::lcd_data[16];
-uint8_t LCD::framebuffer[FRAMEBUFFER_SIZE];
+// Framebuffer in .axi_sram section aligned to 32 bytes for DMA transfer
+__attribute__((section(".axi_sram"), aligned(32))) uint8_t LCD::framebuffer[FRAMEBUFFER_SIZE];
 bool LCD::dma_busy = false;
 
 void LCD::writeReg(uint8_t reg, uint8_t* data, uint8_t length) {
