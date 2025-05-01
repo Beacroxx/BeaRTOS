@@ -31,6 +31,8 @@
 #include "system/clock.hpp"
 #include "system/scheduler.hpp"
 #include "system/systick.hpp"
+#include "peripherals/lcd.hpp"
+#include "peripherals/spi.hpp"
 
 #include <stdio.h>
 
@@ -41,9 +43,6 @@ void SysTick_Handler(void) {
   SystemTick::handler();
   SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;  // Trigger PendSV interrupt
 }
-
-// Timer2 interrupt handler
-void TIM2_IRQHandler(void) { Timer::irqHandler(); }
 
 // HardFault interrupt handler
 void HardFault_Handler(void) { ErrorHandler::hardFault(); }
@@ -70,10 +69,36 @@ void task1(void) {
   }
 }
 
+// Display task
 void task2(void) {
+  // determine max possible full frame fps by drawing a black screen 10 times
+  uint32_t start = HAL_GetTick();
+  for (int i = 0; i < 10; i++) {
+    LCD::fillRect(0, 0, LCD::WIDTH, LCD::HEIGHT, BLACK);
+  }
+  uint32_t end = HAL_GetTick();
+  uint32_t dt = (end - start) / 10;
+  uint32_t id;
+  LCD::readID(&id);
+  char string[13];
+  sprintf(string, "LCD ID: 0x%06lX", id);
+  LCD::drawString(0, 0, 12, string);
+  sprintf(string, "CPU: %lu MHz", HAL_RCC_GetSysClockFreq() / 1000000);
+  LCD::drawString(0, 12, 12, string);
+  // draw spi clock for the lcd
+  PLL2_ClocksTypeDef PLL2_Clocks;
+  HAL_RCCEx_GetPLL2ClockFreq(&PLL2_Clocks);
+  uint32_t spi_freq = PLL2_Clocks.PLL2_Q_Frequency;
+  sprintf(string, "SPI: %lu MHz", spi_freq / 1000000 / 2); // prescaler is 2
+  LCD::drawString(0, 24, 12, string);
+  sprintf(string, "Frame time: %lu ms (%lu Hz)", dt, 1000 / dt);
+  LCD::drawString(0, 36, 12, string);
+
   while (1) {
-    printf("Task 2\n");
-    Scheduler::yieldDelay(2000);
+    // draw the amount of tasks
+    sprintf(string, "Tasks: %d", Scheduler::taskCount);
+    LCD::drawString(0, 48, 12, string);
+    Scheduler::yieldDelay(500);
   }
 }
 
@@ -108,8 +133,10 @@ int main(void) {
   SystemClock::init();
   SystemTick::init();
   GPIO::init();
+  SPI::init();
   Timer::init();
   UART::init();
+  LCD::init();
 
   Scheduler::init();
   Scheduler::initTaskStack(task1, 1024, "task1");

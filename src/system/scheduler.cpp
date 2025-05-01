@@ -175,7 +175,7 @@ void Scheduler::yieldDelay(uint32_t ms) {
   uint32_t targetTick = startTick + ms;
   
   while (HAL_GetTick() < targetTick) {
-    if (nextTask != nullptr) {  // Only yield if there are other tasks to run
+    if (nextTask != nullptr && taskCount > 1) {
       yield();
     }
   }

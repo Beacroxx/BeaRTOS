@@ -1,6 +1,6 @@
 # STM32H7 RTOS Project
 
-A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics covered - task scheduling, GPIO stuff, UART for talking to your computer, and some timer magic.
+A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics covered - task scheduling, GPIO stuff, UART for talking to your computer, LCD display support, and some timer magic.
 
 ## What's Inside
 
@@ -9,15 +9,21 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
 - GPIO controls for your LEDs and buttons
 - UART for sending messages to your computer
 - Timer management for timing things
-- System clock setup
+- System clock setup with optimized CPU frequency
 - Error handling when things go wrong
+- ST7735 LCD display support with:
+  - Text rendering (12x6 and 16x8 fonts)
+  - Graphics primitives (lines, rectangles, pixels)
+  - RGB565 color support
+  - Display window control
+  - Brightness control
 - A simple LED blinky example
 - Cooperative yield delay for efficient task waiting
 
 ## What You'll Need
 
 - PlatformIO
-- A WeAct STM32H7 board
+- A WeAct STM32H7 board with LCD
 - ARM GCC toolchain (comes with PlatformIO)
 - The [Board definition](stm32h723weact.json) in `/home/$USER/.platformio/platforms/ststm32/`
 
@@ -26,7 +32,7 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
 ```
 src/
 ├── error/       # For when things go wrong
-├── peripherals/ # The fun stuff (GPIO, UART, Timer)
+├── peripherals/ # The fun stuff (GPIO, UART, Timer, LCD, SPI)
 └── system/      # The brain of the operation
 ```
 
@@ -38,11 +44,19 @@ src/
 
 ## What It Does
 
-There are three example tasks running:
+There are four example tasks running:
 
-- Task 1: Says "Task 1" every 3 seconds
-- Task 2: Says "Task 2" every 2 seconds
-- Task 3: Says "Task 3" and blinks an LED every second
+- Task 1: Prints "Task 1" every second
+- Task 2: LCD display task that shows:
+  - LCD ID and configuration
+  - CPU frequency
+  - SPI clock speed
+  - Frame time and FPS
+  - Current number of running tasks
+- Task 3: Prints "Task 3" and toggles an LED every second
+- Task 4: A task that demonstrates task creation and termination:
+  - Creates a new task that displays system diagnostics
+  - Exits after task creation
 
 The scheduler automatically manages task memory:
 - Tasks are dynamically allocated when created

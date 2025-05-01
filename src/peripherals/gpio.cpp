@@ -11,6 +11,14 @@ void GPIO::init() {
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   setLed(true);
+
+  HAL_GPIO_WritePin(GPIOE, LCD_CS_Pin|LCD_WR_RS_Pin, GPIO_PIN_RESET);
+
+  GPIO_InitStruct.Pin = LCD_CS_Pin|LCD_WR_RS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 }
 
 void GPIO::toggleLed() {
