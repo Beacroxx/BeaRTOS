@@ -280,7 +280,10 @@ void LCD::update() {
   
   setDisplayWindow(0, 0, WIDTH, HEIGHT);
   writeReg(ST7735_WRITE_RAM, nullptr, 0);
-  
+
+  static_assert(FRAMEBUFFER_SIZE % 32 == 0, "FRAMEBUFFER_SIZE must be a multiple of 32");
+  SCB_InvalidateDCache_by_Addr(framebuffer, FRAMEBUFFER_SIZE);
+
   LCD_CS_RESET;
   dma_busy = true;
   HAL_SPI_Transmit_DMA(SPI_Drv, framebuffer, FRAMEBUFFER_SIZE);

@@ -13,6 +13,12 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
   - Memory region statistics
   - Automatic memory leak detection
   - Memory usage display on LCD
+- Memory Protection Unit (MPU) configuration for:
+  - AXI SRAM region protection
+  - Write-through caching
+  - Cacheable memory regions
+  - Non-shareable memory access
+  - Full access permissions
 - GPIO controls for your LEDs and buttons:
   - LED toggle and state control
   - High-speed output configuration

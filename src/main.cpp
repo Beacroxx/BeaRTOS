@@ -80,6 +80,27 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
 
 }
 
+void Init_MPU() {
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+  HAL_MPU_Disable();
+
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x24000000; // AXI SRAM base
+  MPU_InitStruct.Size = MPU_REGION_SIZE_1MB; // Adjust as needed
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE; // Write-through
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x00;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+}
+
 // SD card task
 void task1(void) {
   uint64_t cardInfo = MicroSD::getCardInfo();
@@ -168,6 +189,9 @@ void exitingTask(void) {
 
 int main(void) {
   HAL_Init();
+  SCB_EnableICache();
+  SCB_EnableDCache();
+  Init_MPU();
   SystemClock::init();
   SystemTick::init();
   GPIO::init();
