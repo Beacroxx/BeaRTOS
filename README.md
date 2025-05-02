@@ -106,6 +106,10 @@ The memory monitoring system provides:
 - Automatic memory leak detection through allocation tracking
 - Visual feedback through the LCD display
 
+The system includes comprehensive idle time monitoring:
+- Tracks CPU idle time percentage in real-time
+- Displays idle time statistics on the LCD
+
 The RTOS includes a yield delay mechanism that allows tasks to wait efficiently:
 - Tasks can voluntarily yield their execution time while waiting
 - Other tasks continue running during the delay period

@@ -13,6 +13,11 @@ TCB *Scheduler::currentTask = nullptr;
 TCB *Scheduler::nextTask = nullptr;
 uint32_t Scheduler::taskIndex = 0;
 uint32_t Scheduler::taskCount = 0;
+uint32_t Scheduler::tasksInYieldDelay = 0;
+uint32_t Scheduler::lastIdleCheckTime = 0;
+uint32_t Scheduler::windowStartTime = 0;
+uint32_t Scheduler::windowIdleTime = 0;
+uint32_t Scheduler::windowTotalTime = 0;
 
 // Initialize the scheduler
 void Scheduler::init() {
@@ -21,6 +26,11 @@ void Scheduler::init() {
   nextTask = nullptr;
   taskIndex = 0;
   taskCount = 0;
+  tasksInYieldDelay = 0;
+  lastIdleCheckTime = 0;
+  windowStartTime = HAL_GetTick();
+  windowIdleTime = 0;
+  windowTotalTime = 0;
 }
 
 // Start the scheduler
@@ -203,14 +213,47 @@ __attribute__((naked)) void Scheduler::switchTasks() {
 }
 
 void Scheduler::yieldDelay(uint32_t ms) {
-  uint32_t startTick = HAL_GetTick();
-  uint32_t targetTick = startTick + ms;
+  uint32_t startTime = HAL_GetTick();
+  uint32_t targetTick = startTime + ms;
+  constexpr uint32_t IDLE_CHECK_INTERVAL = 10; // Check every 10ms
+  
+  // Increment counter for this task entering yieldDelay
+  tasksInYieldDelay++;
+  lastIdleCheckTime = startTime;
+  uint32_t nextIdleCheck = startTime + IDLE_CHECK_INTERVAL;
   
   while (HAL_GetTick() < targetTick) {
     if (nextTask != nullptr && taskCount > 1) {
+      uint32_t currentTime = HAL_GetTick();
+      
+      // Only check idle time periodically
+      if (currentTime >= nextIdleCheck) {
+        uint32_t activeTasks = getActiveTaskCount();
+        uint32_t deltaTime = currentTime - lastIdleCheckTime;
+        
+        // Check if we need to reset the window
+        if (currentTime - windowStartTime >= IDLE_WINDOW_MS) {
+          windowStartTime = currentTime;
+          windowIdleTime = 0;
+          windowTotalTime = 0;
+        }
+        
+        // Accumulate time in current window
+        windowTotalTime += deltaTime;
+        
+        if (tasksInYieldDelay == activeTasks) {
+          windowIdleTime += deltaTime;
+        }
+        lastIdleCheckTime = currentTime;
+        nextIdleCheck = currentTime + IDLE_CHECK_INTERVAL;
+      }
+      
       yield();
     }
   }
+  
+  // Decrement counter when task exits yieldDelay
+  tasksInYieldDelay--;
 }
 
 uint32_t Scheduler::getActiveTaskCount() {
@@ -221,4 +264,13 @@ uint32_t Scheduler::getActiveTaskCount() {
     }
   }
   return count;
+}
+
+uint16_t Scheduler::getIdlePercentage() {
+  if (windowTotalTime == 0) {
+    return 0;
+  }
+  // Calculate percentage and scale to 16-bit range (0-65535)
+  uint32_t percentage = (uint32_t)(((uint64_t)windowIdleTime * 65535) / windowTotalTime);
+  return (uint16_t)percentage;
 }

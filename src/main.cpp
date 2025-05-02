@@ -110,11 +110,6 @@ void task2(void) {
   HAL_RCCEx_GetPLL2ClockFreq(&PLL2_Clocks);
   uint32_t spi_freq = PLL2_Clocks.PLL2_Q_Frequency;
   char string[32];
-  sprintf(string, "CPU: %lu MHz, SPI: %lu MHz", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2); // prescaler is 2
-  LCD::drawString(0, 0, 12, string);
-  sprintf(string, "Frame time: %lu ms (%lu Hz)", dt, 1000 / dt);
-  LCD::drawString(0, 12, 12, string);
-  LCD::update();
 
   while (1) {
     // Get memory statistics
@@ -122,14 +117,22 @@ void task2(void) {
     uint32_t heapUsed, heapFree;
     Memory::getStats(flash, ram, heapUsed, heapFree);
 
-    // Draw memory usage
+    // Draw stats
+    sprintf(string, "CPU: %lu MHz, SPI: %lu MHz", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2); // prescaler is 2
+    LCD::drawString(0, 0, 12, string);
+    sprintf(string, "Frame time: %lu ms (%lu Hz)", dt, 1000 / dt);
+    LCD::drawString(0, 12, 12, string);
+    LCD::update();
     sprintf(string, "Flash: %lu/%lu KB", flash.used / 1024, flash.size / 1024);
     LCD::drawString(0, 24, 12, string);
-    sprintf(string, "RAM: %lu/%lu KB", ram.used / 1024, ram.size / 1024);
+    sprintf(string, "RAM: %lu/%lu KB", (ram.used + heapUsed) / 1024, (ram.size + heapFree) / 1024);
     LCD::drawString(0, 36, 12, string);
-    sprintf(string, "Heap: %lu/%lu KB", heapUsed / 1024, (heapUsed + heapFree) / 1024);
-    LCD::drawString(0, 48, 12, string);
     sprintf(string, "Tasks: %d, Active: %d", Scheduler::taskCount, Scheduler::getActiveTaskCount());
+    LCD::drawString(0, 48, 12, string);
+    uint16_t idlePercent = Scheduler::getIdlePercentage();
+    // Convert to percentage with one decimal place (e.g., 65535 -> 100.0%, 32767 -> 50.0%)
+    uint32_t percentTimes10 = ((uint32_t)idlePercent * 1000) / 65535;
+    sprintf(string, "Idle: %lu.%lu%%", percentTimes10 / 10, percentTimes10 % 10);
     LCD::drawString(0, 60, 12, string);
     LCD::update();
     printf("Task 2\n");

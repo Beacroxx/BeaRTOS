@@ -35,7 +35,7 @@ void MicroSD::init() {
   hsd.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
   hsd.Init.BusWide = SDMMC_BUS_WIDE_1B;
   hsd.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
-  hsd.Init.ClockDiv = 5;
+  hsd.Init.ClockDiv = 7;
 
 	__HAL_RCC_SDMMC1_FORCE_RESET();
 	__HAL_RCC_SDMMC1_RELEASE_RESET();
@@ -50,15 +50,21 @@ void MicroSD::init() {
 }
 
 void MicroSD::readBlocks(uint8_t* pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
+	__disable_irq(); // ensure no interrupts during read
   if (HAL_SD_ReadBlocks(&hsd, pData, blockAddr, numOfBlocks, timeout) != HAL_OK) {
+    printf("Failed to read blocks\n");
     ErrorHandler::handle();
   }
+	__enable_irq();
 }
 
 void MicroSD::writeBlocks(uint8_t* pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
+	__disable_irq(); // ensure no interrupts during write
   if (HAL_SD_WriteBlocks(&hsd, pData, blockAddr, numOfBlocks, timeout) != HAL_OK) {
+    printf("Failed to write blocks\n");
     ErrorHandler::handle();
   }
+	__enable_irq();
 }
 
 uint64_t MicroSD::getCardInfo() {

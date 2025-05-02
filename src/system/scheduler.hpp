@@ -27,6 +27,12 @@ public:
   static TCB *tasks;
   static TCB *currentTask;
   static TCB *nextTask;
+  static constexpr uint32_t IDLE_WINDOW_MS = 4000; // 4 second window
+  static uint32_t tasksInYieldDelay; // Number of tasks currently in yieldDelay
+  static uint32_t lastIdleCheckTime; // Last time we checked for idle state
+  static uint32_t windowStartTime;   // Start of the measurement window
+  static uint32_t windowIdleTime;    // Idle time within current window
+  static uint32_t windowTotalTime;   // Total time within current window
 
   static void init();
   static void start();
@@ -37,6 +43,7 @@ public:
   static void switchTasks();
   static void yieldDelay(uint32_t ms);
   static uint32_t getActiveTaskCount();
+  static uint16_t getIdlePercentage();
 private:
   static uint32_t taskIndex;
 }; 
