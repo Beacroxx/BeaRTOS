@@ -7,6 +7,7 @@ void SystemTick::init() {
   SysTick->VAL = 0;
   SysTick->CTRL = SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk | SysTick_CTRL_CLKSOURCE_Msk;
   NVIC_SetPriority(SysTick_IRQn, 1);
+  __enable_irq();
 }
 
 // System tick handler

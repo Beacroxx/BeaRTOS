@@ -16,18 +16,24 @@ uint32_t Scheduler::taskCount = 0;
 
 // Initialize the scheduler
 void Scheduler::init() {
-  // allocate a dummy task that will get overwritten by the first task
-  tasks = static_cast<TCB *>(Memory::malloc(sizeof(TCB))); // allocate just one TCB for dummy task
-  currentTask = nextTask = &tasks[0]; // Set current and next task to dummy task
+  tasks = nullptr;
+  currentTask = nullptr;
+  nextTask = nullptr;
+  taskIndex = 0;
+  taskCount = 0;
 }
 
 // Start the scheduler
 void Scheduler::start() {
-  if (currentTask == nullptr) {
+  if (taskCount == 0) {
     return; // If no tasks, stay in handler mode
   }
 
-  // Set initial PSP to the first task's stack
+  // Set currentTask to first task
+  currentTask = &tasks[0];
+  nextTask = currentTask;
+
+  // Set initial PSP to the first task's stack and switch to it
   __asm__ __volatile__(
       "LDR r0, =_ZN9Scheduler11currentTaskE\n" // r0 = &Scheduler::currentTask
       "LDR r0, [r0]\n"                         // r0 = currentTask
@@ -36,11 +42,18 @@ void Scheduler::start() {
       "MOV r0, #2\n"      // r0 = 2 (privileged thread mode using PSP)
       "MSR control, r0\n" // Set CONTROL register
       "ISB\n"             // Instruction Synchronization Barrier
-      "BX lr\n");
+      "POP {r4-r11}\n"    // Pop initial context
+      "POP {r0-r3}\n"     // Pop initial registers
+      "POP {r12}\n"       // Pop r12
+      "POP {lr}\n"        // Pop LR
+      "POP {pc}\n"        // Jump to task
+      :
+      :
+      : "r0", "memory");
 }
 
 // Yield to next task
-void Scheduler::yield() { 
+void Scheduler::yield() {
   SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
@@ -49,8 +62,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char
   // look for terminated tasks to reclaim
   int reclaimed = -1;
   for (int i = 0; i < taskCount; i++) {
-    if ((tasks[i].state == TaskState::TERMINATED || tasks[i].state == TaskState::UNINITIALIZED) && &tasks[i] != currentTask) {
-      tasks[i].state = TaskState::UNINITIALIZED;
+    if (tasks[i].state == TaskState::TERMINATED) {
       reclaimed = i;
       break;
     }
@@ -58,13 +70,21 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char
 
   TCB *tcb = nullptr;
 
-  // increase tasks array only if there are no uninitialized tasks to reclaim
+  // increase tasks array only if there are no terminated tasks to reclaim
   if (reclaimed == -1) {
-    tasks = static_cast<TCB *>(Memory::realloc(tasks, sizeof(TCB) * (taskCount + 1)));
+    if (tasks == nullptr) {
+      tasks = static_cast<TCB *>(Memory::malloc(sizeof(TCB)));
+    } else {
+      tasks = static_cast<TCB *>(Memory::realloc(tasks, sizeof(TCB) * (taskCount + 1)));
+    }
     tcb = &tasks[taskCount];
     taskCount++;
   } else {
     tcb = &tasks[reclaimed];
+    // Clear the TCB
+    memset(tcb->name, 0, sizeof(tcb->name));
+    tcb->stack_pointer = nullptr;
+    tcb->stack = nullptr;
   }
 
   // Allocate stack
@@ -106,15 +126,18 @@ __attribute__((naked)) void Scheduler::taskExit() {
   
   // Get current task before any state changes
   TCB* tcb = currentTask;
-
-  nextTask = nullptr;
-
+  
+  // Mark current task as terminated
   tcb->state = TaskState::TERMINATED;
-  memset(tcb->name, 0, sizeof(tcb->name));
+  
+  // Free the stack
   Memory::free(tcb->stack);
-  tcb->stack_pointer = nullptr;
   tcb->stack = nullptr;
-
+  tcb->stack_pointer = nullptr;
+  
+  // Find next task to run
+  updateNextTask();
+  
   __enable_irq();
   switchTasks();
 }
@@ -124,17 +147,32 @@ void Scheduler::updateNextTask() {
   __disable_irq(); 
   uint32_t startIndex = taskIndex;
   
-  // find next ready task
-  do {
-    taskIndex = (taskIndex + 1) % (taskCount);
-    nextTask = &tasks[taskIndex];
-    
-    // If we've checked all tasks and found none ready, set to nullptr
-    if (taskIndex == startIndex) {
-      nextTask = nullptr;
-      break;
-    }
-  } while (nextTask->state != TaskState::READY);
+  // If current task is terminating, we need to find a new task
+  if (currentTask != nullptr && currentTask->state == TaskState::TERMINATED) {
+    // Find next ready task
+    do {
+      taskIndex = (taskIndex + 1) % taskCount;
+      nextTask = &tasks[taskIndex];
+      
+      // If we've checked all tasks and found none ready, we have a problem
+      if (taskIndex == startIndex) {
+        ErrorHandler::hardFault(); // No ready tasks available
+      }
+    } while (nextTask->state != TaskState::READY);
+  } else {
+    // Normal round-robin scheduling
+    do {
+      taskIndex = (taskIndex + 1) % taskCount;
+      nextTask = &tasks[taskIndex];
+      
+      // If we've checked all tasks and found none ready, stay on current task
+      if (taskIndex == startIndex) {
+        nextTask = currentTask;
+        break;
+      }
+    } while (nextTask->state != TaskState::READY);
+  }
+  
   __enable_irq();
 }
 
@@ -147,27 +185,21 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       "LDR r2, [r1]\n"                         // r2 = currentTask
       "STR r0, [r2]\n"                         // currentTask->stack_pointer = r0
 
-      // Set currentTask to nextTask and update its state
+      // Set currentTask to nextTask
       "LDR r3, =_ZN9Scheduler8nextTaskE\n"     // r3 = &Scheduler::nextTask
       "LDR r4, [r3]\n"                         // r4 = nextTask
-      "CMP r4, #0\n"                           // Check if nextTask is nullptr
-      "BEQ 1f\n"                               // If nullptr, skip to end
       "STR r4, [r1]\n"                         // currentTask = nextTask
-      "MOV r5, #1\n"                           // r5 = TaskState::READY
-      "STRB r5, [r4, #8]\n"                    // nextTask->state = READY
 
       // load r4-r11 from next task's stack
       "LDR r0, [r4]\n"        // r0 = nextTask->stack_pointer
       "LDMIA r0!, {r4-r11}\n" // Pop r4-r11, increment sp
       "MSR psp, r0\n"         // update PSP
       
-      "1:\n"                  // Label for branch target
-
       // return from interrupt
       "BX LR\n"
       :
       :
-      : "r0", "r1", "r2", "r3", "r4", "r5", "memory");
+      : "r0", "r1", "r2", "r3", "r4", "memory");
 }
 
 void Scheduler::yieldDelay(uint32_t ms) {

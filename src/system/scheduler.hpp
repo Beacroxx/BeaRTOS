@@ -36,6 +36,7 @@ public:
   static void updateNextTask();
   static void switchTasks();
   static void yieldDelay(uint32_t ms);
+  static void cleanupTerminatedTasks();
 private:
   static uint32_t taskIndex;
 }; 

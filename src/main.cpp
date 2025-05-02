@@ -36,13 +36,14 @@
 #include "system/memory.hpp"
 
 #include <stdio.h>
+#include <string.h>
 
 extern "C" {
 
 // SystemTick interrupt handler
 void SysTick_Handler(void) {
   SystemTick::handler();
-  SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;  // Trigger PendSV interrupt
+  SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
 // HardFault interrupt handler
@@ -122,6 +123,7 @@ void task2(void) {
     sprintf(string, "Tasks: %d", Scheduler::taskCount);
     LCD::drawString(0, 60, 12, string);
     LCD::update();
+    printf("Task 2\n");
     Scheduler::yieldDelay(500);
   }
 }
@@ -157,11 +159,12 @@ int main(void) {
   SystemClock::init();
   SystemTick::init();
   GPIO::init();
+  UART::init();
+  Memory::init();
   SPI::init();
   Timer::init();
-  UART::init();
   LCD::init();
-  Memory::init();  // Initialize memory tracking
+  printf("Initializing tasks\n");
 
   Scheduler::init();
   Scheduler::initTaskStack(task1, 128, "task1");
@@ -171,6 +174,7 @@ int main(void) {
   Scheduler::start();
 
   while (1) {
-    // Do nothing
+    printf("Main\n");
+    Scheduler::yieldDelay(1000);
   }
 }
