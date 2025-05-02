@@ -148,7 +148,7 @@ void task2(void) {
     LCD::drawString(0, 24, 12, string);
     sprintf(string, "RAM: %lu/%lu KB  ", (ram.used + heapUsed) / 1024, (ram.size + heapFree) / 1024);
     LCD::drawString(0, 36, 12, string);
-    sprintf(string, "Tasks: %d, Active: %d  ", Scheduler::taskCount, Scheduler::getActiveTaskCount());
+    sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
     LCD::drawString(0, 48, 12, string);
     uint16_t idlePercent = Scheduler::getIdlePercentage();
     // Convert to percentage with one decimal place (e.g., 65535 -> 100.0%, 32767 -> 50.0%)
@@ -170,12 +170,11 @@ void task3(void) {
 }
 
 void calledTask(void) {
-  Scheduler::yieldDelay(1000);
   printf("Called task\n");
   while (1) {
     // Get system diagnostics
-    printf("CPU Speed: %lu MHz\n", HAL_RCC_GetSysClockFreq() / 1000000);
-    Scheduler::yieldDelay(5000);
+    printf("called task\n");
+    Scheduler::yieldDelay(500);
   }
 }
 

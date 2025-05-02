@@ -41,8 +41,8 @@ public:
   static void taskExit();
   static void updateNextTask();
   static void switchTasks();
+  static void switchTasksNoSave();
   static void yieldDelay(uint32_t ms);
-  static uint32_t getActiveTaskCount();
   static uint16_t getIdlePercentage();
 private:
   static uint32_t taskIndex;

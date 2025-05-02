@@ -69,33 +69,16 @@ void Scheduler::yield() {
 
 // Initialize task stack
 void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char *name) {
-  // look for terminated tasks to reclaim
-  int reclaimed = -1;
-  for (int i = 0; i < taskCount; i++) {
-    if (tasks[i].state == TaskState::TERMINATED) {
-      reclaimed = i;
-      break;
-    }
-  }
-
   TCB *tcb = nullptr;
 
-  // increase tasks array only if there are no terminated tasks to reclaim
-  if (reclaimed == -1) {
-    if (tasks == nullptr) {
-      tasks = static_cast<TCB *>(Memory::malloc(sizeof(TCB)));
-    } else {
-      tasks = static_cast<TCB *>(Memory::realloc(tasks, sizeof(TCB) * (taskCount + 1)));
-    }
-    tcb = &tasks[taskCount];
-    taskCount++;
+  // Reallocate tasks array
+  if (tasks == nullptr) {
+    tasks = static_cast<TCB *>(Memory::malloc(sizeof(TCB)));
   } else {
-    tcb = &tasks[reclaimed];
-    // Clear the TCB
-    memset(tcb->name, 0, sizeof(tcb->name));
-    tcb->stack_pointer = nullptr;
-    tcb->stack = nullptr;
+    tasks = static_cast<TCB *>(Memory::realloc(tasks, sizeof(TCB) * (taskCount + 1)));
   }
+  tcb = &tasks[taskCount];
+  taskCount++;
 
   // Allocate stack
   tcb->stack = static_cast<uint32_t *>(Memory::malloc(stackSize * sizeof(uint32_t)));
@@ -131,25 +114,44 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char
 }
 
 // Task exit handler
-__attribute__((naked)) void Scheduler::taskExit() {
+void Scheduler::taskExit() {
   __disable_irq();
   
-  // Get current task before any state changes
-  TCB* tcb = currentTask;
-  
   // Mark current task as terminated
-  tcb->state = TaskState::TERMINATED;
+  currentTask->state = TaskState::TERMINATED;
+
+  taskCount--;
+
+  // create temporary TCB array
+  TCB *tempTasks = static_cast<TCB *>(Memory::malloc(sizeof(TCB) * taskCount));
+
+  // copy tasks excluding terminated tasks
+  int j = 0;
+  for (int i = 0; i < taskCount + 1; i++) {
+    if (tasks[i].state != TaskState::TERMINATED) {
+      memcpy(&tempTasks[j], &tasks[i], sizeof(TCB));
+      j++;
+      // Magic loop that fixes a bug for some reason (I don't know why)
+      for (int i = 0; i < 100000; i++) {
+        asm volatile("NOP");
+      }
+    }
+  }
+
+  // free current task stack
+  Memory::free(currentTask->stack);
+
+  // free old tasks array
+  Memory::free(tasks);
+
+  // update tasks pointer
+  tasks = tempTasks;
   
-  // Free the stack
-  Memory::free(tcb->stack);
-  tcb->stack = nullptr;
-  tcb->stack_pointer = nullptr;
-  
-  // Find next task to run
-  updateNextTask();
-  
+  nextTask = &tasks[0];
+  taskIndex = 0;
+
   __enable_irq();
-  switchTasks();
+  switchTasksNoSave();
 }
 
 // Update next task
@@ -157,31 +159,17 @@ void Scheduler::updateNextTask() {
   __disable_irq(); 
   uint32_t startIndex = taskIndex;
   
-  // If current task is terminating, we need to find a new task
-  if (currentTask != nullptr && currentTask->state == TaskState::TERMINATED) {
-    // Find next ready task
-    do {
-      taskIndex = (taskIndex + 1) % taskCount;
-      nextTask = &tasks[taskIndex];
-      
-      // If we've checked all tasks and found none ready, we have a problem
-      if (taskIndex == startIndex) {
-        ErrorHandler::hardFault(); // No ready tasks available
-      }
-    } while (nextTask->state != TaskState::READY);
-  } else {
-    // Normal round-robin scheduling
-    do {
-      taskIndex = (taskIndex + 1) % taskCount;
-      nextTask = &tasks[taskIndex];
-      
-      // If we've checked all tasks and found none ready, stay on current task
-      if (taskIndex == startIndex) {
-        nextTask = currentTask;
-        break;
-      }
-    } while (nextTask->state != TaskState::READY);
-  }
+  // Normal round-robin scheduling
+  do {
+    taskIndex = (taskIndex + 1) % taskCount;
+    nextTask = &tasks[taskIndex];
+    
+    // If we've checked all tasks and found none ready, stay on current task
+    if (taskIndex == startIndex) {
+      nextTask = currentTask;
+      break;
+    }
+  } while (nextTask->state != TaskState::READY);
   
   __enable_irq();
 }
@@ -212,6 +200,24 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       : "r0", "r1", "r2", "r3", "r4", "memory");
 }
 
+__attribute__((naked)) void Scheduler::switchTasksNoSave() {
+   __asm__ __volatile__(
+      // load nextTask
+      "LDR r4, =_ZN9Scheduler8nextTaskE\n"     // r4 = &Scheduler::nextTask
+      "LDR r4, [r4]\n"                         // r4 = nextTask
+
+      // load r4-r11 from next task's stack
+      "LDR r0, [r4]\n"        // r0 = nextTask->stack_pointer
+      "LDMIA r0!, {r4-r11}\n" // Pop r4-r11, increment sp
+      "MSR psp, r0\n"         // update PSP
+      
+      // return from interrupt
+      "BX LR\n"
+      :
+      :
+      : "r0", "r1", "r2", "r3", "r4", "memory");
+}
+
 void Scheduler::yieldDelay(uint32_t ms) {
   uint32_t startTime = HAL_GetTick();
   uint32_t targetTick = startTime + ms;
@@ -228,7 +234,7 @@ void Scheduler::yieldDelay(uint32_t ms) {
       
       // Only check idle time periodically
       if (currentTime >= nextIdleCheck) {
-        uint32_t activeTasks = getActiveTaskCount();
+        uint32_t activeTasks = taskCount;
         uint32_t deltaTime = currentTime - lastIdleCheckTime;
         
         // Check if we need to reset the window
@@ -254,16 +260,6 @@ void Scheduler::yieldDelay(uint32_t ms) {
   
   // Decrement counter when task exits yieldDelay
   tasksInYieldDelay--;
-}
-
-uint32_t Scheduler::getActiveTaskCount() {
-  uint32_t count = 0;
-  for (int i = 0; i < taskCount; i++) {
-    if (tasks[i].state != TaskState::TERMINATED) {
-      count++;
-    }
-  }
-  return count;
 }
 
 uint16_t Scheduler::getIdlePercentage() {
