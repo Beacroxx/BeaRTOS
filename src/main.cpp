@@ -34,6 +34,7 @@
 #include "peripherals/lcd.hpp"
 #include "peripherals/spi.hpp"
 #include "system/memory.hpp"
+#include "peripherals/microsd.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -79,7 +80,15 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
 
 }
 
+// SD card task
 void task1(void) {
+  uint64_t cardInfo = MicroSD::getCardInfo();
+  uint32_t cardSize = cardInfo >> 32;
+  uint32_t cardBlockSize = cardInfo & 0xFFFFFFFF;
+  uint64_t totalBytes = (uint64_t)cardSize * (uint64_t)cardBlockSize;
+  uint32_t totalMB = totalBytes / (1024 * 1024);
+  printf("Card size: %lu blocks, %lu MB\n", cardSize, totalMB);
+
   while (1) {
     printf("Task 1\n");
     Scheduler::yieldDelay(1000);
@@ -164,10 +173,12 @@ int main(void) {
   SPI::init();
   Timer::init();
   LCD::init();
+  MicroSD::init();
+
   printf("Initializing tasks\n");
 
   Scheduler::init();
-  Scheduler::initTaskStack(task1, 128, "task1");
+  Scheduler::initTaskStack(task1, 1024, "task1");
   Scheduler::initTaskStack(task2, 128, "task2");
   Scheduler::initTaskStack(task3, 128, "task3");
   Scheduler::initTaskStack(exitingTask, 128, "exitingTask");

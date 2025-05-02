@@ -1,6 +1,6 @@
 # STM32H7 RTOS Project
 
-A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics covered - task scheduling, GPIO stuff, UART for talking to your computer, LCD display support, and some timer magic.
+A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics covered - task scheduling, GPIO stuff, UART for talking to your computer, LCD display support, microSD card support, and some timer magic.
 
 ## What's Inside
 
@@ -31,6 +31,10 @@ A simple RTOS implementation for STM32H7 microcontrollers. It's got the basics c
   - Display window control
   - Brightness control
   - DMA-accelerated SPI communication for improved performance
+- microSD card support with:
+  - High-speed SPI communication
+  - Card detection and initialization
+  - Error handling and recovery
 - A simple LED blinky example
 - Cooperative yield delay for efficient task waiting
 - SPI communication with:

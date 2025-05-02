@@ -28,7 +28,7 @@ void SystemClock::configOscillator() {
   RCC_OscInitStruct.PLL.PLLM = 5; // 5 MHz
   RCC_OscInitStruct.PLL.PLLN = 150; // 750 MHz
   RCC_OscInitStruct.PLL.PLLP = 1; // 750 MHz (SYSCLK)
-  RCC_OscInitStruct.PLL.PLLQ = 2; // 375 MHz (D1PCLK1)
+  RCC_OscInitStruct.PLL.PLLQ = 4; // 187.5 MHz (D1PCLK1) for SDMMC
   RCC_OscInitStruct.PLL.PLLR = 1; // 750 MHz (D3PCLK1)
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_1;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
@@ -38,8 +38,8 @@ void SystemClock::configOscillator() {
     ErrorHandler::handle();
   }
 
-  // Configure PLL2 for SPI4
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_SPI45;
+  // Configure PLL2 for SPI4 and SDMMC for Main PLL
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_SPI45 | RCC_PERIPHCLK_SDMMC;
   PeriphClkInit.PLL2.PLL2M = 5; // 5 MHz
   PeriphClkInit.PLL2.PLL2N = 112; // 560 MHz
   PeriphClkInit.PLL2.PLL2P = 2; // unused
@@ -49,6 +49,7 @@ void SystemClock::configOscillator() {
   PeriphClkInit.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInit.PLL2.PLL2FRACN = 0;
   PeriphClkInit.Spi45ClockSelection = RCC_SPI45CLKSOURCE_PLL2;
+  PeriphClkInit.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL2;
 
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
     ErrorHandler::handle();
