@@ -120,7 +120,7 @@ void task2(void) {
     LCD::drawString(0, 36, 12, string);
     sprintf(string, "Heap: %lu/%lu KB", heapUsed / 1024, (heapUsed + heapFree) / 1024);
     LCD::drawString(0, 48, 12, string);
-    sprintf(string, "Tasks: %d", Scheduler::taskCount);
+    sprintf(string, "Tasks: %d, Active: %d", Scheduler::taskCount, Scheduler::getActiveTaskCount());
     LCD::drawString(0, 60, 12, string);
     LCD::update();
     printf("Task 2\n");

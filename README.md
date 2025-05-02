@@ -90,6 +90,9 @@ The scheduler automatically manages task memory:
 - Memory usage is tracked and displayed in real-time
 - Heap allocations are monitored for potential memory leaks
 - Memory regions (Flash, RAM, Heap) are tracked and reported
+- Active task count is automatically tracked and displayed
+
+Note: The system has been updated to support printf functionality from both task and non-task contexts, making debugging and logging more flexible throughout the application.
 
 The memory monitoring system provides:
 - Real-time tracking of Flash memory usage

@@ -212,3 +212,13 @@ void Scheduler::yieldDelay(uint32_t ms) {
     }
   }
 }
+
+uint32_t Scheduler::getActiveTaskCount() {
+  uint32_t count = 0;
+  for (int i = 0; i < taskCount; i++) {
+    if (tasks[i].state != TaskState::TERMINATED) {
+      count++;
+    }
+  }
+  return count;
+}
