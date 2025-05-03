@@ -48,6 +48,11 @@ void SysTick_Handler(void) {
   SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
+// Default handler
+void _Default_Handler(void) {
+  ErrorHandler::handle(ErrorCode::UNEXPECTED_INTERRUPT, __FILE__, __LINE__);
+}
+
 // HardFault interrupt handler
 void HardFault_Handler(void) { 
   ErrorHandler::hardFault(ErrorCode::HARD_FAULT, __FILE__, __LINE__); 

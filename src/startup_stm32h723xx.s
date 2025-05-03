@@ -111,8 +111,7 @@ LoopFillZerobss:
 */
     .section  .text.Default_Handler,"ax",%progbits
 Default_Handler:
-Infinite_Loop:
-  b  Infinite_Loop
+  b  _Default_Handler // branch to _Default_Handler in main.cpp
   .size  Default_Handler, .-Default_Handler
 /******************************************************************************
 *

@@ -23,7 +23,8 @@ void ErrorHandler::hardFault(ErrorCode code, const char* file, int line) {
   
   while (1) {
     GPIO::toggleLed();
-    HAL_Delay(20); // Faster delay for hardfault
+    // volatile loop delay because HAL is deactivated in a hard fault
+    for (volatile int i = 0; i < 10000000; i++) __NOP();
   }
 }
 
@@ -96,6 +97,7 @@ const char* ErrorHandler::getErrorString(ErrorCode code) {
     case ErrorCode::CRITICAL_TASK_FAILURE: return "Critical task failure";
     case ErrorCode::CRITICAL_SCHEDULER_FAILURE: return "Critical scheduler failure";
     case ErrorCode::HAL_INIT_FAILED: return "HAL initialization failed";
+    case ErrorCode::UNEXPECTED_INTERRUPT: return "Unexpected interrupt";
 
     default: return "Unknown error code";
   }
