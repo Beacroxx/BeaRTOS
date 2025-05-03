@@ -27,31 +27,70 @@ void Memory::getStats(MemoryRegion& flash, MemoryRegion& ram, MemoryRegion& heap
   heap = Memory::heap;
 }
 
+// Magic number to identify our allocations
+constexpr size_t MEMORY_MAGIC = 0xDEADBEEF;
+
 void* Memory::malloc(size_t size) {
-  void* ptr = ::malloc(size);
+  if (size > SIZE_MAX - sizeof(size_t) - sizeof(size_t)) return nullptr; // overflow check
+  void* ptr = ::malloc(size + sizeof(size_t) + sizeof(size_t));
   if (ptr) {
     heap.used += size;
+    *reinterpret_cast<size_t*>(ptr) = size | 0x10000000;
+    *reinterpret_cast<size_t*>(static_cast<char*>(ptr) + sizeof(size_t)) = MEMORY_MAGIC;
   }
-  return ptr;
+  return ptr ? static_cast<char*>(ptr) + sizeof(size_t) : nullptr;
 }
 
 void Memory::free(void* ptr) {
-  if (ptr) {
-    // Note: This is a simplified implementation. In a real system,
-    // you'd need to track the actual size of each allocation.
-    // For now, we'll just decrement by a fixed amount to show the concept.
-    heap.used -= 4;  // Assuming 4 bytes per allocation
+  if (!ptr) return;
+
+  void* meta_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+  // Check magic number first (optional, but recommended)
+  size_t magic = *reinterpret_cast<size_t*>(ptr);
+  if (magic != MEMORY_MAGIC) {
+    // Not our allocation, pass to standard free
     ::free(ptr);
+    return;
   }
+  // Now check marker bit
+  size_t stored = *reinterpret_cast<size_t*>(meta_ptr);
+  if ((stored & 0x10000000) == 0) {
+    // Not our allocation, pass to standard free
+    ::free(ptr);
+    return;
+  }
+  // All checks passed
+  size_t size = stored & 0x7FFFFFFF;
+  heap.used -= size;
+  ::free(meta_ptr);
 }
 
 void* Memory::realloc(void* ptr, size_t size) {
-  void* new_ptr = ::realloc(ptr, size);
-  if (new_ptr) {
-    if (ptr) {
-      heap.used -= 4;  // Free old allocation
-    }
-    heap.used += size;  // Add new allocation
+  if (size > SIZE_MAX - sizeof(size_t) - sizeof(size_t)) return nullptr;
+  if (!ptr) return Memory::malloc(size);
+
+  void* meta_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+  // Check magic number first
+  size_t magic = *reinterpret_cast<size_t*>(ptr);
+  if (magic != MEMORY_MAGIC) {
+    // Not our allocation, pass to standard realloc
+    return ::realloc(ptr, size);
   }
-  return new_ptr;
-} 
+  // Now check marker bit
+  size_t stored = *reinterpret_cast<size_t*>(meta_ptr);
+  if ((stored & 0x10000000) == 0) {
+    // Not our allocation, pass to standard realloc
+    return ::realloc(ptr, size);
+  }
+  // All checks passed
+  size_t old_size = stored & 0x7FFFFFFF;
+  void* new_meta_ptr = ::realloc(meta_ptr, size + sizeof(size_t) + sizeof(size_t));
+  if (new_meta_ptr) {
+    heap.used -= old_size;
+    heap.used += size;
+    *reinterpret_cast<size_t*>(new_meta_ptr) = size | 0x10000000;
+    *reinterpret_cast<size_t*>(static_cast<char*>(new_meta_ptr) + sizeof(size_t)) = MEMORY_MAGIC;
+    return static_cast<char*>(new_meta_ptr) + sizeof(size_t);
+  }
+  return nullptr;
+}

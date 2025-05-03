@@ -78,24 +78,14 @@ void UART::mspInit(UART_HandleTypeDef *huart) {
 int UART::write(int fd, const char *buf, int count) {
   if (count <= 0) return 0;
 
-  // Wait for any ongoing transfer to complete
+  // busy wait for any ongoing transfer to complete
   while (dmaBusy) {
-    asm volatile (
-      "LDR r0, =_ZN9Scheduler6activeE\n"  // r0 = &Scheduler::active
-      "LDRB r0, [r0]\n"                   // r0 = Scheduler::active
-      "CMP r0, #0\n"                      // compare r0 with 0
-      "BEQ 1f\n"                          // if r0 == 0, branch to label 1
-      "LDR r0, =0xE000ED04\n"            // r0 = &ICSR
-      "LDR r1, [r0]\n"                    // r1 = ICSR
-      "ORR r1, r1, #0x1\n"               // set PendSV bit
-      "STR r1, [r0]\n"                    // ICSR = r1
-      "1:\n"                              // label 1
-    );
+    asm volatile("nop");
   }
 
   dmaBusy = true;
 
-  txBuffer = static_cast<uint8_t *>(Memory::malloc(count));
+  txBuffer = static_cast<uint8_t *>(Memory::realloc(txBuffer, count));
   memcpy(txBuffer, buf, count);
 
   if (HAL_UART_Transmit_DMA(&huart1, txBuffer, count) != HAL_OK) {
@@ -106,6 +96,5 @@ int UART::write(int fd, const char *buf, int count) {
 } 
 
 void UART::dmaCallback() {
-  Memory::free(txBuffer);
   dmaBusy = false;
 }
