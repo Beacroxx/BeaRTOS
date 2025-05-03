@@ -193,7 +193,7 @@ void task2(void) {
     // Memory Info
     sprintf(string, "Flash: %lu / %lu KB  ", flash.used / 1024, flash.size / 1024);
     LCD::drawString(0, lineHeight * 3 - scrollPosition, 12, string);
-    sprintf(string, "RAM: %lu / %lu KB  ", (ram.used + heap.used) / 1024, (ram.size + heap.size) / 1024);
+    sprintf(string, "RAM: %lu / %lu KB  ", ram.used / 1024, ram.size / 1024);
     LCD::drawString(0, lineHeight * 4 - scrollPosition, 12, string);
     sprintf(string, "Heap: %lu / %lu KB  ", heap.used / 1024, heap.size / 1024);
     LCD::drawString(0, lineHeight * 5 - scrollPosition, 12, string);
