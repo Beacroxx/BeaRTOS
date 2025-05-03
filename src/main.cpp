@@ -273,11 +273,23 @@ void task2(void) {
       }
 
       // draw voltage across screen as pixels where height is voltage
+      uint8_t prev_voltage = 0;
+      uint32_t avg = 0;
       for (int i = 0; i < LCD::WIDTH; i++) {
         uint32_t voltage = ADC::getVoltage();
         uint32_t height = voltage * LCD::HEIGHT / 3300;
-        LCD::setPixel(i, LCD::HEIGHT - height, WHITE);
+        if (i == 0) {
+          prev_voltage = height;
+          continue; // dont draw, just update prev_voltage
+        }
+        // Invert Y coordinates by subtracting from LCD::HEIGHT
+        LCD::drawLine(i - 1, LCD::HEIGHT - prev_voltage, i, LCD::HEIGHT - height, WHITE);
+        prev_voltage = height;
+        avg += height;
       }
+      avg /= LCD::WIDTH;
+      sprintf(string, "Avg: %d", avg);
+      LCD::drawString(0, LCD::HEIGHT - 12, 12, string);
 
       // Update the display
       LCD::update();
