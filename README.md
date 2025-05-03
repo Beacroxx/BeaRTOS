@@ -1,6 +1,6 @@
 # STM32H7 RTOS Project
 
-A (maybe) robust and stable RTOS implementation for STM32H7 microcontrollers featuring comprehensive task management, memory protection, and peripheral support.
+A (potentially) robust and stable RTOS implementation for STM32H7 microcontrollers featuring comprehensive task management, memory protection, and peripheral support.
 
 ## Core Features
 
@@ -147,7 +147,7 @@ src/
 - PlatformIO
 - WeAct STM32H7 board with LCD
 - ARM GCC toolchain (included with PlatformIO)
-- Board definition file: `stm32h723weact.json` in `/home/$USER/.platformio/platforms/ststm32/`
+- Board definition file: [`stm32h723weact.json`](stm32h723weact.json) in `/home/$USER/.platformio/platforms/ststm32/`
 
 ## Example Tasks
 1. microSD Card Task:
@@ -167,6 +167,36 @@ src/
 2. Open in PlatformIO
 3. Move/Copy board definition into PlatformIO
 4. Build and flash
+
+## Code Examples
+The project includes a comprehensive [`EXAMPLES.md`](EXAMPLES.md) file that demonstrates practical usage of the RTOS features:
+
+- Task Management
+  - Basic task creation and scheduling
+  - Dynamic task creation
+  - Task synchronization and delays
+
+- Memory Management
+  - Memory statistics and monitoring
+  - Allocation tracking
+  - Memory protection configuration
+
+- Peripheral Usage
+  - UART communication
+  - ADC temperature monitoring
+  - LCD display operations
+  - microSD card operations
+
+- Error Handling
+  - Basic error handling
+  - Custom error recovery
+  - Error reporting
+
+- System Configuration
+  - MPU configuration
+  - Complete system setup
+
+Each example includes working code snippets that can be directly used or adapted for your application. The examples are based on the actual implementation in the codebase and follow the same coding style and conventions.
 
 ## License
 MIT License - See [LICENSE.md](LICENSE.md) for details. 
