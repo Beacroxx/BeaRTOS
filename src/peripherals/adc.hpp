@@ -11,10 +11,12 @@ class ADC {
 public:
 	static void init();
 	static void calibrate();
-	static uint32_t read();
+	static void read();
 	static float getTemperature();
+	static uint32_t getVoltage();
 	
 private:
 	static ADC_HandleTypeDef hadc3;
 	static ADC_ChannelConfTypeDef sConfig1;
+	static uint32_t values[2];
 };

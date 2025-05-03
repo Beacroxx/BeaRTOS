@@ -53,7 +53,7 @@ void HardFault_Handler(void) {
   ErrorHandler::hardFault(ErrorCode::HARD_FAULT, __FILE__, __LINE__); 
 }
 
-// PendSV interrupt handler
+// PendSV exception handler
 void PendSV_Handler(void) {
   if (!Scheduler::active) return; // If scheduler is not active, do nothing, no tasks to execute
   Scheduler::updateNextTask();
@@ -78,6 +78,16 @@ void SPI4_IRQHandler(void) {
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
   if (hspi->Instance == SPI4) {
     SPI::dmaTxCompleteCallback();
+  }
+}
+
+void EXTI15_10_IRQHandler(void) {
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if(GPIO_Pin == GPIO_PIN_13) {
+    GPIO::buttonPressed = true;
   }
 }
 
@@ -143,7 +153,7 @@ void task2(void) {
   const uint8_t lineHeight = 12;
   const uint8_t screenHeight = LCD::HEIGHT;
   const uint8_t maxVisibleLines = screenHeight / lineHeight;  // 6 lines can fit on screen
-  const uint8_t totalLines = 9;  // Increased for more info
+  const uint8_t totalLines = 10;  // Increased for more info
   const uint8_t scrollSpeed = 1; // Pixels to scroll per update
   int16_t scrollPosition = 0;
   uint32_t lastScrollTime = HAL_GetTick();
@@ -161,6 +171,8 @@ void task2(void) {
   uint32_t lastUptimeUpdate = startTime;
   uint32_t uptimeSeconds = 0;
 
+  uint32_t buttonPresses = 0;
+
   while (1) {
     // Update uptime
     uint32_t currentTime = HAL_GetTick();
@@ -176,78 +188,100 @@ void task2(void) {
     // Clear the screen
     LCD::fillRect(0, 0, LCD::WIDTH, LCD::HEIGHT, BLACK);
 
-    // Draw stats with scrolling offset
-    // System Info
-    sprintf(string, "CPU: %lu MHz, SPI: %lu MHz  ", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2);
-    LCD::drawString(0, 0 - scrollPosition, 12, string);
-    sprintf(string, "Frame: %lu ms (%lu Hz)  ", dt, 1000 / dt);
-    LCD::drawString(0, lineHeight - scrollPosition, 12, string);
-    
-    // Uptime
-    uint32_t hours = uptimeSeconds / 3600;
-    uint32_t minutes = (uptimeSeconds % 3600) / 60;
-    uint32_t seconds = uptimeSeconds % 60;
-    sprintf(string, "Uptime: %02lu:%02lu:%02lu  ", hours, minutes, seconds);
-    LCD::drawString(0, lineHeight * 2 - scrollPosition, 12, string);
-    
-    // Memory Info
-    sprintf(string, "Flash: %lu / %lu KB  ", flash.used / 1024, flash.size / 1024);
-    LCD::drawString(0, lineHeight * 3 - scrollPosition, 12, string);
-    sprintf(string, "RAM: %lu / %lu KB  ", ram.used / 1024, ram.size / 1024);
-    LCD::drawString(0, lineHeight * 4 - scrollPosition, 12, string);
-    sprintf(string, "Heap: %lu / %lu KB  ", heap.used / 1024, heap.size / 1024);
-    LCD::drawString(0, lineHeight * 5 - scrollPosition, 12, string);
-    
-    // Task Info
-    sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
-    LCD::drawString(0, lineHeight * 6 - scrollPosition, 12, string);
-    
-    // Temperature
-    float temp = ADC::getTemperature();
-    sprintf(string, "Core Temp: %d.%d C %c   ", (uint32_t)temp, (uint32_t)(temp * 10) % 10, temp > 80 ? '!' : ' ');
-    LCD::drawString(0, lineHeight * 7 - scrollPosition, 12, string);
-    
-    // Scroll position (debug)
-    sprintf(string, "Scroll: %d  ", scrollPosition);
-    LCD::drawString(0, lineHeight * 8 - scrollPosition, 12, string);
-
-    // Update the display
-    LCD::update();
-
-    // Handle scrolling and pausing
-    if (isPaused) {
-      // Check if pause duration has elapsed
-      if (currentTime - pauseStartTime >= pauseDuration) {
-        isPaused = false;
-        lastScrollTime = currentTime;
-      }
-    } else {
-      // Check if it's time to scroll
-      if (currentTime - lastScrollTime >= scrollInterval) {
-        if (scrollingDown) {
-          scrollPosition += scrollSpeed;
-          // Check if we've reached the bottom
-          if (scrollPosition >= maxScrollPosition) {
-            scrollPosition = maxScrollPosition;
-            scrollingDown = false;
-            isPaused = true;
-            pauseStartTime = currentTime;
-          }
-        } else {
-          scrollPosition -= scrollSpeed;
-          // Check if we've reached the top
-          if (scrollPosition <= 0) {
-            scrollPosition = 0;
-            scrollingDown = true;
-            isPaused = true;
-            pauseStartTime = currentTime;
-          }
-        }
-        lastScrollTime = currentTime;
-      }
+    if (GPIO::wasPressed()) {
+      buttonPresses++;
     }
 
-    printf("Task 2\n");
+    if (buttonPresses % 2 == 0) {
+      // Draw stats with scrolling offset
+      // System Info
+      sprintf(string, "CPU: %lu MHz, SPI: %lu MHz  ", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2);
+      LCD::drawString(0, 0 - scrollPosition, 12, string);
+      sprintf(string, "Frame: %lu ms (%lu Hz)  ", dt, 1000 / dt);
+      LCD::drawString(0, lineHeight - scrollPosition, 12, string);
+      
+      // Uptime
+      uint32_t hours = uptimeSeconds / 3600;
+      uint32_t minutes = (uptimeSeconds % 3600) / 60;
+      uint32_t seconds = uptimeSeconds % 60;
+      sprintf(string, "Uptime: %02lu:%02lu:%02lu  ", hours, minutes, seconds);
+      LCD::drawString(0, lineHeight * 2 - scrollPosition, 12, string);
+      
+      // Memory Info
+      sprintf(string, "Flash: %lu / %lu KB  ", flash.used / 1024, flash.size / 1024);
+      LCD::drawString(0, lineHeight * 3 - scrollPosition, 12, string);
+      sprintf(string, "RAM: %lu / %lu KB  ", ram.used / 1024, ram.size / 1024);
+      LCD::drawString(0, lineHeight * 4 - scrollPosition, 12, string);
+      sprintf(string, "Heap: %lu / %lu KB  ", heap.used / 1024, heap.size / 1024);
+      LCD::drawString(0, lineHeight * 5 - scrollPosition, 12, string);
+      
+      // Task Info
+      sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
+      LCD::drawString(0, lineHeight * 6 - scrollPosition, 12, string);
+      
+      // Temperature
+      float temp = ADC::getTemperature();
+      sprintf(string, "Core Temp: %d.%d C %c   ", (uint32_t)temp, (uint32_t)(temp * 10) % 10, temp > 80 ? '!' : ' ');
+      LCD::drawString(0, lineHeight * 7 - scrollPosition, 12, string);
+      
+      // Scroll position (debug)
+      sprintf(string, "Scroll: %d  ", scrollPosition);
+      LCD::drawString(0, lineHeight * 8 - scrollPosition, 12, string);
+
+      // Button pressed
+      sprintf(string, "Button: %d  ", buttonPresses);
+      LCD::drawString(0, lineHeight * 9 - scrollPosition, 12, string);
+
+      // Update the display
+      LCD::update();
+
+      // Handle scrolling and pausing
+      if (isPaused) {
+        // Check if pause duration has elapsed
+        if (currentTime - pauseStartTime >= pauseDuration) {
+          isPaused = false;
+          lastScrollTime = currentTime;
+        }
+      } else {
+        // Check if it's time to scroll
+        if (currentTime - lastScrollTime >= scrollInterval) {
+          if (scrollingDown) {
+            scrollPosition += scrollSpeed;
+            // Check if we've reached the bottom
+            if (scrollPosition >= maxScrollPosition) {
+              scrollPosition = maxScrollPosition;
+              scrollingDown = false;
+              isPaused = true;
+              pauseStartTime = currentTime;
+            }
+          } else {
+            scrollPosition -= scrollSpeed;
+            // Check if we've reached the top
+            if (scrollPosition <= 0) {
+              scrollPosition = 0;
+              scrollingDown = true;
+              isPaused = true;
+              pauseStartTime = currentTime;
+            }
+          }
+          lastScrollTime = currentTime;
+        }
+      }
+    } else {
+      for (int i = 0; i < 10; i++) {
+        ADC::read();
+      }
+
+      // draw voltage across screen as pixels where height is voltage
+      for (int i = 0; i < LCD::WIDTH; i++) {
+        uint32_t voltage = ADC::getVoltage();
+        uint32_t height = voltage * LCD::HEIGHT / 3300;
+        LCD::setPixel(i, LCD::HEIGHT - height, WHITE);
+      }
+
+      // Update the display
+      LCD::update();
+    }
     Scheduler::yieldDelay(50);
   }
 }
@@ -263,7 +297,6 @@ void task3(void) {
 void calledTask(void) {
   printf("called task\n");
   while (1) {
-    // Get system diagnostics
     printf("called task\n");
     Scheduler::yieldDelay(500);
   }
@@ -272,7 +305,7 @@ void calledTask(void) {
 void exitingTask(void) {
   printf("Exiting task starting\n");
   Scheduler::yieldDelay(500);
-  Scheduler::initTaskStack(calledTask, 128, "calledTask");
+  Scheduler::initTaskStack(calledTask, 256, "calledTask");
   Scheduler::yieldDelay(500);
   printf("Exiting task done\n");
 }
@@ -303,10 +336,10 @@ int main(void) {
 
   printf("Initializing tasks\n");
 
-  Scheduler::initTaskStack(task1, 128, "task1");
-  Scheduler::initTaskStack(task2, 128, "task2");
-  Scheduler::initTaskStack(task3, 128, "task3");
-  Scheduler::initTaskStack(exitingTask, 128, "exitingTask");
+  Scheduler::initTaskStack(task1, 256, "task1");
+  Scheduler::initTaskStack(task2, 256, "task2");
+  Scheduler::initTaskStack(task3, 256, "task3");
+  Scheduler::initTaskStack(exitingTask, 256, "exitingTask");
 
   Scheduler::start();
 

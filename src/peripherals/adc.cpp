@@ -5,19 +5,20 @@
 
 ADC_HandleTypeDef ADC::hadc3;
 ADC_ChannelConfTypeDef ADC::sConfig1;
+uint32_t ADC::values[2];
 
 void ADC::init() {
   __HAL_RCC_ADC3_CLK_ENABLE();
 
   hadc3.Instance = ADC3;
-  hadc3.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV8; // 375 MHz / 8 = 46.875 MHz
+  hadc3.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV8; // 350 MHz / 8 = 43.75 MHz
   hadc3.Init.Resolution = ADC_RESOLUTION_12B;
   hadc3.Init.DataAlign = ADC3_DATAALIGN_RIGHT;
-  hadc3.Init.ScanConvMode = DISABLE;
+  hadc3.Init.ScanConvMode = ENABLE;
   hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc3.Init.LowPowerAutoWait = DISABLE;
-  hadc3.Init.ContinuousConvMode = DISABLE;
-  hadc3.Init.NbrOfConversion = 1;
+  hadc3.Init.ContinuousConvMode = ENABLE; // enable continuous conversion
+  hadc3.Init.NbrOfConversion = 2;
   hadc3.Init.DiscontinuousConvMode = ENABLE;
   hadc3.Init.NbrOfDiscConversion = 1;
   hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -45,7 +46,9 @@ void ADC::init() {
     ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
   }
 
-	sConfig1.Rank = ADC_REGULAR_RANK_2;
+	sConfig1.Channel = ADC_CHANNEL_11; // PC1
+  sConfig1.Rank = ADC_REGULAR_RANK_2;
+  sConfig1.SamplingTime = ADC3_SAMPLETIME_24CYCLES_5; // Faster sampling for scope
 	if (HAL_ADC_ConfigChannel(&hadc3, &sConfig1) != HAL_OK) {
 		ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
 	}
@@ -57,19 +60,26 @@ void ADC::calibrate() {
 	}
 }
 
-uint32_t ADC::read() {
-	if (HAL_ADC_Start(&hadc3) != HAL_OK) {
-		ErrorHandler::handle(ErrorCode::ADC_READ_FAILED, __FILE__, __LINE__);
-	}
+void ADC::read() {
+  for (uint32_t i = 0; i < 2; i++) {
+    if (HAL_ADC_Start(&hadc3) != HAL_OK) {
+      ErrorHandler::handle(ErrorCode::ADC_READ_FAILED, __FILE__, __LINE__);
+    }
 
-	// wait for conversion to complete
-	if (HAL_ADC_PollForConversion(&hadc3, 1000) != HAL_OK) {
-		ErrorHandler::handle(ErrorCode::ADC_READ_FAILED, __FILE__, __LINE__);
-	}
+    if (HAL_ADC_PollForConversion(&hadc3, 1000) != HAL_OK) {
+      ErrorHandler::handle(ErrorCode::ADC_READ_FAILED, __FILE__, __LINE__);
+    }
 
-	return HAL_ADC_GetValue(&hadc3);
+    values[i] = HAL_ADC_GetValue(&hadc3);
+  }
 }
 
 float ADC::getTemperature() {
-	return (((float)read() * 3300) / 4096 - V30) / AVG_SLOPE + 30;
+  read();
+	return (((float)values[0] * 3300) / 4096 - V30) / AVG_SLOPE + 30;
+}
+
+uint32_t ADC::getVoltage() {
+  read();
+	return ((float)values[1] * 3300) / 4096;
 }

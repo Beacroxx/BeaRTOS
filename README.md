@@ -41,7 +41,12 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
   - LED toggle and state control
   - High-speed output configuration
   - Hardware flow control
-- UART for sending messages to your computer
+  - Button press detection with interrupt support
+- UART for sending messages to your computer:
+  - High-speed 921600 baud rate
+  - 8-bit data, 1 stop bit, no parity
+  - Hardware flow control support
+  - Interrupt-driven operation
 - Timer management for timing things
 - System clock setup with optimized CPU frequency
 - Error handling when things go wrong
@@ -51,6 +56,8 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
   - Automatic calibration
   - Polling-based conversion
   - Temperature calculation in Celsius
+  - Voltage measurement support
+  - Dual-channel operation
 - ST7735 LCD display support with:
   - Text rendering with two font sizes:
     - 12x6 pixel font for compact display
@@ -71,10 +78,14 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
     - Task count monitoring
     - Core temperature monitoring
     - Uptime tracking
+    - Button press counter
 - microSD card support with:
   - High-speed SPI communication
   - Card detection and initialization
   - Error handling and recovery
+  - Block read/write operations
+  - Card information retrieval
+  - Interrupt-safe operations
 - A simple LED blinky example
 - Cooperative yield delay for efficient task waiting
 - SPI communication with:
@@ -111,7 +122,9 @@ src/
 
 There are four example tasks running:
 
-- Task 1: Prints "Task 1" every second
+- Task 1: microSD card task that:
+  - Detects and initializes the SD card
+  - Reads and displays card information
 - Task 2: LCD display task that shows:
   - LCD ID and configuration
   - CPU frequency
@@ -121,6 +134,10 @@ There are four example tasks running:
   - Flash memory usage
   - RAM usage
   - Heap allocation status
+  - Core temperature
+  - Uptime in HH:MM:SS format
+  - Button press counter
+  - Voltage measurement visualization
 - Task 3: Prints "Task 3" and toggles an LED every second
 - Task 4: A task that demonstrates task creation and termination:
   - Creates a new task that displays system diagnostics

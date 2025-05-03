@@ -17,7 +17,7 @@ struct TCB {
   uint32_t *stackBase;
   TaskState state;
   char name[16];
-};
+} __attribute__((aligned(32)));
 
 // Scheduler class
 class Scheduler {
@@ -42,7 +42,6 @@ public:
   static void taskExit();
   static void updateNextTask();
   static void switchTasks();
-  static void switchTasksNoSave();
   static void yieldDelay(uint32_t ms);
 private:
   static uint32_t taskIndex;

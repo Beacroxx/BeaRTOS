@@ -26,10 +26,10 @@ void SystemClock::configOscillator() {
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 
   RCC_OscInitStruct.PLL.PLLM = 5; // 5 MHz
-  RCC_OscInitStruct.PLL.PLLN = 150; // 750 MHz
-  RCC_OscInitStruct.PLL.PLLP = 1; // 750 MHz (SYSCLK)
-  RCC_OscInitStruct.PLL.PLLQ = 4; // 187.5 MHz (D1PCLK1) for SDMMC
-  RCC_OscInitStruct.PLL.PLLR = 2; // 375 MHz (D3PCLK1) for ADC
+  RCC_OscInitStruct.PLL.PLLN = 140; // 700 MHz ( Unstable sonofabitch )
+  RCC_OscInitStruct.PLL.PLLP = 1; // 700 MHz (SYSCLK)
+  RCC_OscInitStruct.PLL.PLLQ = 4; // 175 MHz (D1PCLK1) for SDMMC
+  RCC_OscInitStruct.PLL.PLLR = 2; // 350 MHz (D3PCLK1) for ADC
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_1;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLFRACN = 0;

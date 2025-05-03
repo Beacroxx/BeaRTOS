@@ -85,6 +85,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char
 }
 
 void Scheduler::taskExit() {
+  __disable_irq();
   // Set the task to TERMINATED
   currentTask->state = TaskState::TERMINATED;
 
@@ -112,6 +113,8 @@ void Scheduler::taskExit() {
 
   // manually select next task
   updateNextTask();
+
+  __enable_irq();
 
   // yield to next task
   SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
@@ -145,6 +148,8 @@ void Scheduler::updateNextTask() {
 
 __attribute__((naked)) void Scheduler::switchTasks() {
   __asm__ __volatile__(
+      "CPSID I\n" // Disable interrupts
+
       // check if currentTask is nullptr
       "LDR r1, =_ZN9Scheduler11currentTaskE\n" // r1 = &Scheduler::currentTask
       "LDR r2, [r1]\n"                         // r2 = currentTask
@@ -177,6 +182,8 @@ __attribute__((naked)) void Scheduler::switchTasks() {
       "MSR psp, r0\n"         // update PSP
 
       "ISB\n" // Instruction Synchronization Barrier
+
+      "CPSIE I\n" // Enable interrupts
       
       // return from interrupt
       "BX LR\n"

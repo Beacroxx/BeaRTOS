@@ -115,6 +115,7 @@ public:
   static void setPixel(uint8_t x, uint8_t y, uint16_t color);
   static void drawHLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color);
   static void drawVLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color);
+  static void drawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint16_t color);
   static void fillRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t color);
   static void drawChar(int16_t x, int16_t y, char c, uint8_t size);
   static void drawString(int16_t x, int16_t y, uint8_t size, char* str);
