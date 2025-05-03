@@ -26,7 +26,7 @@ public:
   static void init();
 
   // Get memory usage statistics
-  static void getStats(MemoryRegion& flash, MemoryRegion& ram, uint32_t& heapUsed, uint32_t& heapFree);
+  static void getStats(MemoryRegion& flash, MemoryRegion& ram, MemoryRegion& heap);
 
   // Override malloc/free to track dynamic allocations
   static void* malloc(size_t size);
@@ -35,7 +35,5 @@ public:
 
 private:
   // Heap tracking
-  static uint32_t heapUsed;
-  static uint32_t heapFree;
-  static uint32_t heapTotal;
+  static MemoryRegion heap;
 }; 

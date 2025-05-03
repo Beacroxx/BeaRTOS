@@ -116,8 +116,8 @@ public:
   static void drawHLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color);
   static void drawVLine(uint8_t x, uint8_t y, uint8_t length, uint16_t color);
   static void fillRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t color);
-  static void drawChar(uint16_t x, uint16_t y, char c, uint8_t size);
-  static void drawString(uint8_t x, uint8_t y, uint8_t size, char* str);
+  static void drawChar(int16_t x, int16_t y, char c, uint8_t size);
+  static void drawString(int16_t x, int16_t y, uint8_t size, char* str);
   static void update();
 
   // DMA status

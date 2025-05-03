@@ -133,36 +133,122 @@ void task2(void) {
   }
   uint32_t end = HAL_GetTick();
   uint32_t dt = (end - start) / 10;
-  // draw spi clock for the lcd
+  // get spi clock for the lcd
   PLL2_ClocksTypeDef PLL2_Clocks;
   HAL_RCCEx_GetPLL2ClockFreq(&PLL2_Clocks);
   uint32_t spi_freq = PLL2_Clocks.PLL2_Q_Frequency;
   char string[32];
 
-  while (1) {
-    // Get memory statistics
-    Memory::MemoryRegion flash, ram;
-    uint32_t heapUsed, heapFree;
-    Memory::getStats(flash, ram, heapUsed, heapFree);
+  // Variables for scrolling
+  const uint8_t lineHeight = 12;
+  const uint8_t screenHeight = LCD::HEIGHT;
+  const uint8_t maxVisibleLines = screenHeight / lineHeight;  // 6 lines can fit on screen
+  const uint8_t totalLines = 9;  // Increased for more info
+  const uint8_t scrollSpeed = 1; // Pixels to scroll per update
+  int16_t scrollPosition = 0;
+  uint32_t lastScrollTime = HAL_GetTick();
+  const uint32_t scrollInterval = 50; // Reduced interval for smoother scrolling
+  const uint32_t pauseDuration = 2000; // 2 seconds pause at each end
+  bool scrollingDown = true;
+  uint32_t pauseStartTime = 0;
+  bool isPaused = false;
 
-    // Draw stats
-    sprintf(string, "CPU: %lu MHz, SPI: %lu MHz  ", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2); // prescaler is 2
-    LCD::drawString(0, 0, 12, string);
-    sprintf(string, "Frame time: %lu ms (%lu Hz)  ", dt, 1000 / dt);
-    LCD::drawString(0, 12, 12, string);
-    LCD::update();
+  // Calculate maximum scroll position to align last line with bottom of screen
+  const int16_t maxScrollPosition = (totalLines * lineHeight) - screenHeight;
+
+  // Uptime tracking
+  uint32_t startTime = HAL_GetTick();
+  uint32_t lastUptimeUpdate = startTime;
+  uint32_t uptimeSeconds = 0;
+
+  while (1) {
+    // Update uptime
+    uint32_t currentTime = HAL_GetTick();
+    if (currentTime - lastUptimeUpdate >= 1000) { // Update every second
+      uptimeSeconds = (currentTime - startTime) / 1000;
+      lastUptimeUpdate = currentTime;
+    }
+
+    // Get memory statistics
+    Memory::MemoryRegion flash, ram, heap;
+    Memory::getStats(flash, ram, heap);
+
+    // Clear the screen
+    LCD::fillRect(0, 0, LCD::WIDTH, LCD::HEIGHT, BLACK);
+
+    // Draw stats with scrolling offset
+    // System Info
+    sprintf(string, "CPU: %lu MHz, SPI: %lu MHz  ", HAL_RCC_GetSysClockFreq() / 1000000, spi_freq / 1000000 / 2);
+    LCD::drawString(0, 0 - scrollPosition, 12, string);
+    sprintf(string, "Frame: %lu ms (%lu Hz)  ", dt, 1000 / dt);
+    LCD::drawString(0, lineHeight - scrollPosition, 12, string);
+    
+    // Uptime
+    uint32_t hours = uptimeSeconds / 3600;
+    uint32_t minutes = (uptimeSeconds % 3600) / 60;
+    uint32_t seconds = uptimeSeconds % 60;
+    sprintf(string, "Uptime: %02lu:%02lu:%02lu  ", hours, minutes, seconds);
+    LCD::drawString(0, lineHeight * 2 - scrollPosition, 12, string);
+    
+    // Memory Info
     sprintf(string, "Flash: %lu / %lu KB  ", flash.used / 1024, flash.size / 1024);
-    LCD::drawString(0, 24, 12, string);
-    sprintf(string, "RAM: %lu / %lu KB  ", (ram.used + heapUsed) / 1024, (ram.size + heapFree) / 1024);
-    LCD::drawString(0, 36, 12, string);
+    LCD::drawString(0, lineHeight * 3 - scrollPosition, 12, string);
+    sprintf(string, "RAM: %lu / %lu KB  ", (ram.used + heap.used) / 1024, (ram.size + heap.size) / 1024);
+    LCD::drawString(0, lineHeight * 4 - scrollPosition, 12, string);
+    sprintf(string, "Heap: %lu / %lu KB  ", heap.used / 1024, heap.size / 1024);
+    LCD::drawString(0, lineHeight * 5 - scrollPosition, 12, string);
+    
+    // Task Info
     sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
-    LCD::drawString(0, 48, 12, string);
+    LCD::drawString(0, lineHeight * 6 - scrollPosition, 12, string);
+    
+    // Temperature
     float temp = ADC::getTemperature();
-    sprintf(string, "Core Temp: %d.%d C    ", (uint32_t)temp, (uint32_t)(temp * 10) % 10);
-    LCD::drawString(0, 60, 12, string);
+    sprintf(string, "Core Temp: %d.%d C %c   ", (uint32_t)temp, (uint32_t)(temp * 10) % 10, temp > 80 ? '!' : ' ');
+    LCD::drawString(0, lineHeight * 7 - scrollPosition, 12, string);
+    
+    // Scroll position (debug)
+    sprintf(string, "Scroll: %d  ", scrollPosition);
+    LCD::drawString(0, lineHeight * 8 - scrollPosition, 12, string);
+
+    // Update the display
     LCD::update();
+
+    // Handle scrolling and pausing
+    if (isPaused) {
+      // Check if pause duration has elapsed
+      if (currentTime - pauseStartTime >= pauseDuration) {
+        isPaused = false;
+        lastScrollTime = currentTime;
+      }
+    } else {
+      // Check if it's time to scroll
+      if (currentTime - lastScrollTime >= scrollInterval) {
+        if (scrollingDown) {
+          scrollPosition += scrollSpeed;
+          // Check if we've reached the bottom
+          if (scrollPosition >= maxScrollPosition) {
+            scrollPosition = maxScrollPosition;
+            scrollingDown = false;
+            isPaused = true;
+            pauseStartTime = currentTime;
+          }
+        } else {
+          scrollPosition -= scrollSpeed;
+          // Check if we've reached the top
+          if (scrollPosition <= 0) {
+            scrollPosition = 0;
+            scrollingDown = true;
+            isPaused = true;
+            pauseStartTime = currentTime;
+          }
+        }
+        lastScrollTime = currentTime;
+      }
+    }
+
     printf("Task 2\n");
-    Scheduler::yieldDelay(500);
+    Scheduler::yieldDelay(50);
   }
 }
 

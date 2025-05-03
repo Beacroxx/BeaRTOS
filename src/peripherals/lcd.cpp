@@ -182,23 +182,62 @@ void LCD::setCursor(uint8_t x, uint8_t y) {
 }
 
 void LCD::fillRGBRect(uint8_t x, uint8_t y, uint8_t* data, uint8_t width, uint8_t height) {
-  if ((x + width) > WIDTH || (y + height) > HEIGHT) return;
+  // Strict bounds checking
+  if (x >= WIDTH || y >= HEIGHT || width == 0 || height == 0) return;
+  if (x + width > WIDTH) width = WIDTH - x;
+  if (y + height > HEIGHT) height = HEIGHT - y;
   
   for (uint8_t row = 0; row < height; row++) {
     for (uint8_t col = 0; col < width; col++) {
       uint16_t pixel = ((uint16_t*)data)[row * width + col];
       uint16_t fb_index = ((y + row) * WIDTH + (x + col)) * 2;
-      framebuffer[fb_index] = pixel & 0xFF;
-      framebuffer[fb_index + 1] = pixel >> 8;
+      if (fb_index + 1 < FRAMEBUFFER_SIZE) {  // Ensure we don't write past framebuffer
+        framebuffer[fb_index] = pixel & 0xFF;
+        framebuffer[fb_index + 1] = pixel >> 8;
+      }
     }
   }
 }
 
-void LCD::drawChar(uint16_t x, uint16_t y, char c, uint8_t size) {
+void LCD::drawChar(int16_t x, int16_t y, char c, uint8_t size) {
   const uint8_t font_width = (size == 12 ? 6 : 8);
   const uint8_t font_height = size;
   uint16_t write[font_height][font_width];
-  uint8_t temp, y0 = y, x0 = x;
+  uint8_t temp;
+  int16_t y0 = y;
+  int16_t x0 = x;
+
+  // Check if character is completely off screen
+  if (y0 >= HEIGHT || x0 >= WIDTH || y0 <= -font_height || x0 <= -font_width) return;
+
+  // Calculate visible portion of character
+  uint8_t visible_width = font_width;
+  uint8_t visible_height = font_height;
+  uint8_t x_offset = 0;
+  uint8_t y_offset = 0;
+
+  // Handle horizontal clipping
+  if (x0 < 0) {
+    x_offset = -x0;
+    visible_width = font_width - x_offset;
+    x0 = 0;
+  }
+  if (x0 + visible_width > WIDTH) {
+    visible_width = WIDTH - x0;
+  }
+
+  // Handle vertical clipping
+  if (y0 < 0) {
+    y_offset = -y0;
+    visible_height = font_height - y_offset;
+    y0 = 0;
+  }
+  if (y0 + visible_height > HEIGHT) {
+    visible_height = HEIGHT - y0;
+  }
+
+  // Additional safety check
+  if (visible_width == 0 || visible_height == 0) return;
 
   // Initialize write array
   for (uint8_t i = 0; i < font_height; i++) {
@@ -222,7 +261,7 @@ void LCD::drawChar(uint16_t x, uint16_t y, char c, uint8_t size) {
       if (temp & 0x80) {
         uint8_t col = t / 2;
         uint8_t row = t1 + ((t % 2) * 8);
-        if (row < font_height) {
+        if (row < font_height && col < font_width) {  // Additional bounds check
           write[row][col] = POINT_COLOR;
         }
       }
@@ -230,10 +269,11 @@ void LCD::drawChar(uint16_t x, uint16_t y, char c, uint8_t size) {
     }
   }
 
-  fillRGBRect(x0, y0, (uint8_t *)&write, font_width, font_height);
+  // Only draw the visible portion of the character
+  fillRGBRect(x0, y0, (uint8_t *)&write[y_offset][x_offset], visible_width, visible_height);
 }
 
-void LCD::drawString(uint8_t x, uint8_t y, uint8_t size, char* str) {
+void LCD::drawString(int16_t x, int16_t y, uint8_t size, char* str) {
   while (*str != '\0') {
     drawChar(x, y, *str, size);
     x += (size == 12 ? 6 : 8);

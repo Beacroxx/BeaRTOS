@@ -61,6 +61,16 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
   - Display window control
   - Brightness control
   - DMA-accelerated SPI communication for improved performance
+  - Smooth scrolling text display with:
+    - Configurable scroll speed and timing
+    - Automatic pause at top and bottom positions
+    - Real-time system information display
+    - Memory usage monitoring
+    - CPU and SPI clock speed display
+    - Frame time and FPS calculation
+    - Task count monitoring
+    - Core temperature monitoring
+    - Uptime tracking
 - microSD card support with:
   - High-speed SPI communication
   - Card detection and initialization
