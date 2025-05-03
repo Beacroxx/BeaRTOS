@@ -52,7 +52,7 @@ void HardFault_Handler(void) { ErrorHandler::hardFault(); }
 
 // PendSV interrupt handler
 void PendSV_Handler(void) {
-  if (Scheduler::currentTask == nullptr) return; // If current task is nullptr, do nothing, no tasks to execute
+  if (!Scheduler::active) return; // If scheduler is not active, do nothing, no tasks to execute
   Scheduler::updateNextTask();
   Scheduler::switchTasks();
 }
@@ -150,11 +150,6 @@ void task2(void) {
     LCD::drawString(0, 36, 12, string);
     sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
     LCD::drawString(0, 48, 12, string);
-    uint16_t idlePercent = Scheduler::getIdlePercentage();
-    // Convert to percentage with one decimal place (e.g., 65535 -> 100.0%, 32767 -> 50.0%)
-    uint32_t percentTimes10 = ((uint32_t)idlePercent * 1000) / 65535;
-    sprintf(string, "Idle: %lu.%lu%%  ", percentTimes10 / 10, percentTimes10 % 10);
-    LCD::drawString(0, 60, 12, string);
     LCD::update();
     printf("Task 2\n");
     Scheduler::yieldDelay(500);
@@ -170,7 +165,7 @@ void task3(void) {
 }
 
 void calledTask(void) {
-  printf("Called task\n");
+  printf("called task\n");
   while (1) {
     // Get system diagnostics
     printf("called task\n");
@@ -179,10 +174,11 @@ void calledTask(void) {
 }
 
 void exitingTask(void) {
+  printf("Exiting task a\n");
   Scheduler::yieldDelay(500);
   Scheduler::initTaskStack(calledTask, 128, "calledTask");
   Scheduler::yieldDelay(500);
-  printf("Exiting task\n");
+  printf("Exiting task b\n");
   return;
 }
 
@@ -203,15 +199,15 @@ int main(void) {
 
   printf("Initializing tasks\n");
 
-  Scheduler::init();
-  Scheduler::initTaskStack(task1, 1024, "task1");
+  Scheduler::initTaskStack(task1, 128, "task1");
   Scheduler::initTaskStack(task2, 128, "task2");
   Scheduler::initTaskStack(task3, 128, "task3");
   Scheduler::initTaskStack(exitingTask, 128, "exitingTask");
+
   Scheduler::start();
 
+  // will not get here ideally
   while (1) {
-    printf("Main\n");
-    Scheduler::yieldDelay(1000);
+    __NOP();
   }
 }

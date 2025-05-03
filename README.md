@@ -1,6 +1,6 @@
 # STM32H7 RTOS Project
 
-A simple (but unstable) RTOS implementation for STM32H7 microcontrollers. It's got the basics covered - task scheduling, GPIO stuff, UART for talking to your computer, LCD display support, microSD card support, and some timer magic.
+A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. It's got the basics covered - task scheduling, GPIO stuff, UART for talking to your computer, LCD display support, microSD card support, and some timer magic.
 
 ## What's Inside
 
@@ -111,10 +111,6 @@ The memory monitoring system provides:
 - Memory region statistics for system optimization
 - Automatic memory leak detection through allocation tracking
 - Visual feedback through the LCD display
-
-The system includes comprehensive idle time monitoring:
-- Tracks CPU idle time percentage in real-time
-- Displays idle time statistics on the LCD
 
 The RTOS includes a yield delay mechanism that allows tasks to wait efficiently:
 - Tasks can voluntarily yield their execution time while waiting
