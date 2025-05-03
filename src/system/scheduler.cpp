@@ -17,11 +17,11 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char
   __disable_irq();
   // Allocate one task if none exist
   if (tasks == nullptr) {
-    tasks = (TCB *)Memory::malloc(sizeof(TCB));
+    tasks = (TCB *)Memory::malloc(sizeof(TCB), __FILE__, __LINE__);
     memset(tasks, 0, sizeof(TCB));
   } else {
     // Reallocate tasks array
-    tasks = (TCB *)Memory::realloc(tasks, (taskCount + 1) * sizeof(TCB));
+    tasks = (TCB *)Memory::realloc(tasks, (taskCount + 1) * sizeof(TCB), __FILE__, __LINE__);
     // only memset the new task
     memset(&tasks[taskCount], 0, sizeof(TCB));
   }
@@ -30,7 +30,7 @@ void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char
 
   // Allocate stack for new task
   TCB *newTask = &tasks[taskCount - 1];
-  newTask->stackBase = (uint32_t *)Memory::malloc(stackSize * sizeof(uint32_t));
+  newTask->stackBase = (uint32_t *)Memory::malloc(stackSize * sizeof(uint32_t), __FILE__, __LINE__);
   memset(newTask->stackBase, 0, stackSize * sizeof(uint32_t));
   newTask->stackPointer = newTask->stackBase + stackSize;
 
@@ -70,10 +70,10 @@ void Scheduler::taskExit() {
   }
 
   // Free currentTask's stack
-  Memory::free(currentTask->stackBase);
+  Memory::free(currentTask->stackBase, __FILE__, __LINE__);
 
   // reallocate tasks array to new size
-  tasks = (TCB *)Memory::realloc(tasks, (taskCount - 1) * sizeof(TCB));
+  tasks = (TCB *)Memory::realloc(tasks, (taskCount - 1) * sizeof(TCB), __FILE__, __LINE__);
 
   // Decrement taskCount
   taskCount--;

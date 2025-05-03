@@ -85,7 +85,7 @@ int UART::write(int fd, const char *buf, int count) {
 
   dmaBusy = true;
 
-  txBuffer = static_cast<uint8_t *>(Memory::realloc(txBuffer, count));
+  txBuffer = static_cast<uint8_t *>(Memory::realloc(txBuffer, count, __FILE__, __LINE__));
   memcpy(txBuffer, buf, count);
 
   if (HAL_UART_Transmit_DMA(&huart1, txBuffer, count) != HAL_OK) {

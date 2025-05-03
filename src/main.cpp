@@ -129,6 +129,7 @@ void Init_MPU() {
 
 // SD card task
 void task1(void) {
+  #if ENABLE_MICROSD
   if (MicroSD::available()) {
     uint64_t cardInfo = MicroSD::getCardInfo();
     uint32_t cardSize = cardInfo >> 32;
@@ -139,14 +140,19 @@ void task1(void) {
   } else {
     printf("Card not available\n");
   }
+  #endif
 
   while (1) {
     printf("Task 1\n");
-    Scheduler::yieldDelay(1000);
+#if ENABLE_ALLOCATION_TRACKER
+    Memory::printAllocations();
+#endif
+    Scheduler::yieldDelay(5000);
   }
 }
 
 // Display task
+#if ENABLE_LCD
 void task2(void) {
   // determine max possible full frame fps by drawing a black screen 10 times
   uint32_t start = HAL_GetTick();
@@ -310,6 +316,7 @@ void task2(void) {
     Scheduler::yieldDelay(50);
   }
 }
+#endif
 
 void task3(void) {
   while (1) {
@@ -349,8 +356,14 @@ int main(void) {
   Memory::init();
   SPI::init();
   Timer::init();
+  
+  #if ENABLE_MICROSD
   MicroSD::init();
+  #endif
+
+  #if ENABLE_LCD
   LCD::init();
+  #endif
 
   // enable temperature sensor
   ADC3_COMMON->CCR |= ADC_CCR_TSEN;
@@ -362,7 +375,11 @@ int main(void) {
   printf("Initializing tasks\n");
 
   Scheduler::initTaskStack(task1, 256, "task1");
+
+  #if ENABLE_LCD
   Scheduler::initTaskStack(task2, 256, "task2");
+  #endif
+
   Scheduler::initTaskStack(task3, 256, "task3");
   Scheduler::initTaskStack(exitingTask, 256, "exitingTask");
 

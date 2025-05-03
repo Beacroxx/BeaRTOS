@@ -25,6 +25,33 @@ A (maybe) robust and stable RTOS implementation for STM32H7 microcontrollers fea
   - Memory region statistics
   - Automatic memory leak detection
   - Real-time memory usage display
+- Advanced Allocation Tracking (optional):
+  - File and line number tracking for each allocation
+  - Active allocation listing with source locations
+  - Memory leak detection with source context
+  - Allocation size tracking
+  - Real-time allocation statistics
+
+### Feature Configuration
+The project supports selective feature enablement through build flags in `platformio.ini`:
+- `ENABLE_ERROR_STRINGS`: Enable detailed error messages
+- `ENABLE_ALLOCATION_TRACKER`: Enable memory allocation tracking
+- `ENABLE_MICROSD`: Enable microSD card support
+- `ENABLE_LCD`: Enable LCD display support
+
+Example configuration:
+```ini
+[env:stm32h723weact]
+platform = ststm32
+board = stm32h723weact
+framework = stm32cube
+monitor_speed = 1500000
+build_flags = 
+  -D ENABLE_ERROR_STRINGS = 1
+  -D ENABLE_ALLOCATION_TRACKER = 1
+  -D ENABLE_MICROSD = 0
+  -D ENABLE_LCD = 1
+```
 
 ### Error Handling System
 - Multi-level error categorization:

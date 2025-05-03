@@ -1,15 +1,23 @@
 #include "memory.hpp"
 #include "error/handler.hpp"
 #include <cstring>
+#include <cstdio>
 
 // Initialize static members
 Memory::MemoryRegion Memory::heap = {0, 0, 0};
+#if ENABLE_ALLOCATION_TRACKER
+Memory::Allocation Memory::allocations[MAX_ALLOCATIONS];
+size_t Memory::allocationCount = 0;
+#endif
 
 void Memory::init() {
   // Calculate heap size from linker symbols
   heap.start = reinterpret_cast<uint32_t>(&_ebss);
   heap.size = reinterpret_cast<uint32_t>(&_estack) - heap.start;
   heap.used = 0;
+  #if ENABLE_ALLOCATION_TRACKER
+  allocationCount = 0;
+  #endif
 }
 
 void Memory::getStats(MemoryRegion& flash, MemoryRegion& ram, MemoryRegion& heap) {
@@ -30,18 +38,29 @@ void Memory::getStats(MemoryRegion& flash, MemoryRegion& ram, MemoryRegion& heap
 // Magic number to identify our allocations
 constexpr size_t MEMORY_MAGIC = 0xDEADBEEF;
 
-void* Memory::malloc(size_t size) {
+void* Memory::malloc(size_t size, const char* file, uint32_t line) {
   if (size > SIZE_MAX - sizeof(size_t) - sizeof(size_t)) return nullptr; // overflow check
   void* ptr = ::malloc(size + sizeof(size_t) + sizeof(size_t));
   if (ptr) {
     heap.used += size;
     *reinterpret_cast<size_t*>(ptr) = size | 0x10000000;
     *reinterpret_cast<size_t*>(static_cast<char*>(ptr) + sizeof(size_t)) = MEMORY_MAGIC;
+    
+    #if ENABLE_ALLOCATION_TRACKER
+    // Track allocation if we have space
+    if (allocationCount < MAX_ALLOCATIONS) {
+      allocations[allocationCount].ptr = static_cast<char*>(ptr) + sizeof(size_t);
+      allocations[allocationCount].size = size;
+      allocations[allocationCount].file = file;
+      allocations[allocationCount].line = line;
+      allocationCount++;
+    }
+    #endif
   }
   return ptr ? static_cast<char*>(ptr) + sizeof(size_t) : nullptr;
 }
 
-void Memory::free(void* ptr) {
+void Memory::free(void* ptr, const char* file, uint32_t line) {
   if (!ptr) return;
 
   void* meta_ptr = static_cast<char*>(ptr) - sizeof(size_t);
@@ -62,12 +81,27 @@ void Memory::free(void* ptr) {
   // All checks passed
   size_t size = stored & 0x7FFFFFFF;
   heap.used -= size;
+  
+  #if ENABLE_ALLOCATION_TRACKER
+  // Remove allocation from tracking
+  for (size_t i = 0; i < allocationCount; i++) {
+    if (allocations[i].ptr == ptr) {
+      // Move all allocations after this one one position back
+      for (size_t j = i; j < allocationCount - 1; j++) {
+        allocations[j] = allocations[j + 1];
+      }
+      allocationCount--;
+      break;
+    }
+  }
+  #endif
+  
   ::free(meta_ptr);
 }
 
-void* Memory::realloc(void* ptr, size_t size) {
+void* Memory::realloc(void* ptr, size_t size, const char* file, uint32_t line) {
   if (size > SIZE_MAX - sizeof(size_t) - sizeof(size_t)) return nullptr;
-  if (!ptr) return Memory::malloc(size);
+  if (!ptr) return Memory::malloc(size, file, line);
 
   void* meta_ptr = static_cast<char*>(ptr) - sizeof(size_t);
   // Check magic number first
@@ -90,7 +124,46 @@ void* Memory::realloc(void* ptr, size_t size) {
     heap.used += size;
     *reinterpret_cast<size_t*>(new_meta_ptr) = size | 0x10000000;
     *reinterpret_cast<size_t*>(static_cast<char*>(new_meta_ptr) + sizeof(size_t)) = MEMORY_MAGIC;
-    return static_cast<char*>(new_meta_ptr) + sizeof(size_t);
+    void* new_ptr = static_cast<char*>(new_meta_ptr) + sizeof(size_t);
+    
+    #if ENABLE_ALLOCATION_TRACKER
+    // Update allocation tracking
+    for (size_t i = 0; i < allocationCount; i++) {
+      if (allocations[i].ptr == ptr) {
+        allocations[i].ptr = new_ptr;
+        allocations[i].size = size;
+        allocations[i].file = file;
+        allocations[i].line = line;
+        break;
+      }
+    }
+    #endif
+    
+    return new_ptr;
   }
   return nullptr;
 }
+
+#if ENABLE_ALLOCATION_TRACKER
+void Memory::printAllocations() {
+  if (allocationCount == 0) {
+    printf("No active allocations\n");
+    return;
+  }
+  
+  char buffer[4096]; 
+  char* ptr = buffer;
+  ptr += sprintf(ptr, "Active allocations (%d):\n", allocationCount);
+  
+  for (size_t i = 0; i < allocationCount; i++) {
+    const char* filename = allocations[i].file ? strrchr(allocations[i].file, '/') : nullptr;
+    filename = filename ? filename + 1 : (allocations[i].file ? allocations[i].file : "unknown");
+    ptr += sprintf(ptr, "%p %6d B %s:%u\n", 
+                  allocations[i].ptr,
+                  allocations[i].size,
+                  filename,
+                  allocations[i].line);
+  }
+  printf("%s", buffer);
+}
+#endif

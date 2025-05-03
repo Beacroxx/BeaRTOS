@@ -1,5 +1,6 @@
 #include "lcd.hpp"
 
+#if ENABLE_LCD
 // Static member initialization
 uint8_t LCD::lcd_data[16];
 // Framebuffer in .axi_sram section aligned to 32 bytes for DMA transfer
@@ -349,3 +350,5 @@ void LCD::update() {
   dma_busy = true;
   HAL_SPI_Transmit_DMA(SPI_Drv, framebuffer, FRAMEBUFFER_SIZE);
 }
+
+#endif

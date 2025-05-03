@@ -1,5 +1,7 @@
 #pragma once
 
+#if ENABLE_LCD
+
 #include <stdio.h>
 #include "gpio.hpp"
 #include "spi.hpp"
@@ -143,3 +145,5 @@ private:
   static void setDisplayWindow(uint8_t x, uint8_t y, uint8_t width, uint8_t height);
   static void fillRGBRect(uint8_t x, uint8_t y, uint8_t* data, uint8_t width, uint8_t height);
 };
+
+#endif

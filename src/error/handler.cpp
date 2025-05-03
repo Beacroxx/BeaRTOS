@@ -31,6 +31,7 @@ void ErrorHandler::reportError(ErrorCode code, const char* file, int line) {
   printErrorOverUart(code, file, line);
 }
 
+#if ENABLE_ERROR_STRINGS
 const char* ErrorHandler::getErrorString(ErrorCode code) {
   switch (code) {
     // System errors that should trigger hard fault
@@ -99,6 +100,7 @@ const char* ErrorHandler::getErrorString(ErrorCode code) {
     default: return "Unknown error code";
   }
 }
+#endif
 
 bool ErrorHandler::isCriticalError(ErrorCode code) {
   uint32_t codeValue = static_cast<uint32_t>(code);
@@ -110,7 +112,12 @@ void ErrorHandler::printErrorOverUart(ErrorCode code, const char* file, int line
   // Try to print error message over UART
   // If UART is not working, this will fail silently
   char buffer[128];
+  #if ENABLE_ERROR_STRINGS
   snprintf(buffer, sizeof(buffer), "Error: 0x%04X - %s (File: %s, Line: %d)\r\n", 
            static_cast<uint32_t>(code), getErrorString(code), file, line);
+  #else
+  snprintf(buffer, sizeof(buffer), "Error: 0x%04X (File: %s, Line: %d)\r\n", 
+           static_cast<uint32_t>(code), file, line);
+  #endif
   UART::write(1, buffer, strlen(buffer));
 } 

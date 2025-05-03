@@ -2,8 +2,10 @@
 #include "error/handler.hpp"
 #include <stdio.h>
 
+#if ENABLE_MICROSD
 SD_HandleTypeDef MicroSD::hsd;
 bool MicroSD::isInitialized = false;
+
 void MicroSD::init() {
   // Configure GPIO pins
   GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -89,3 +91,4 @@ uint64_t MicroSD::getCardInfo() {
 bool MicroSD::available() {
   return isInitialized;
 }
+#endif

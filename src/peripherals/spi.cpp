@@ -86,6 +86,8 @@ void SPI::initDMA() {
 }
 
 void SPI::dmaTxCompleteCallback() {
+#if ENABLE_LCD
   LCD_CS_SET;  // Release CS after DMA transfer
   LCD::dma_busy = false;
+#endif
 }
