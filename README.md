@@ -27,6 +27,12 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
 - Timer management for timing things
 - System clock setup with optimized CPU frequency
 - Error handling when things go wrong
+- ADC3 temperature monitoring with:
+  - 12-bit resolution
+  - Internal temperature sensor support
+  - Automatic calibration
+  - Polling-based conversion
+  - Temperature calculation in Celsius
 - ST7735 LCD display support with:
   - Text rendering with two font sizes:
     - 12x6 pixel font for compact display

@@ -35,6 +35,7 @@
 #include "peripherals/spi.hpp"
 #include "system/memory.hpp"
 #include "peripherals/microsd.hpp"
+#include "peripherals/adc.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -150,6 +151,9 @@ void task2(void) {
     LCD::drawString(0, 36, 12, string);
     sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
     LCD::drawString(0, 48, 12, string);
+    float temp = ADC::getTemperature();
+    sprintf(string, "Core Temp: %d.%d C    ", (uint32_t)temp, (uint32_t)(temp * 10) % 10);
+    LCD::drawString(0, 60, 12, string);
     LCD::update();
     printf("Task 2\n");
     Scheduler::yieldDelay(500);
@@ -194,6 +198,13 @@ int main(void) {
   Memory::init();
   SPI::init();
   Timer::init();
+
+  // enable temperature sensor
+  ADC3_COMMON->CCR |= ADC_CCR_TSEN;
+  HAL_Delay(10); // Wait at least 10µs for sensor to stabilize
+
+  ADC::init();
+  ADC::calibrate();
   LCD::init();
   MicroSD::init();
 
