@@ -14,7 +14,6 @@ void ErrorHandler::handle(ErrorCode code, const char* file, int line) {
   }
 
   // return silently if not critical
-  HAL_Delay(100);
   return;
 }
 
@@ -96,7 +95,7 @@ const char* ErrorHandler::getErrorString(ErrorCode code) {
     case ErrorCode::CRITICAL_TASK_FAILURE: return "Critical task failure";
     case ErrorCode::CRITICAL_SCHEDULER_FAILURE: return "Critical scheduler failure";
     case ErrorCode::HAL_INIT_FAILED: return "HAL initialization failed";
-    
+
     default: return "Unknown error code";
   }
 }

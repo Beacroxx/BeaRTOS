@@ -205,6 +205,8 @@ int main(void) {
   Memory::init();
   SPI::init();
   Timer::init();
+  MicroSD::init();
+  LCD::init();
 
   // enable temperature sensor
   ADC3_COMMON->CCR |= ADC_CCR_TSEN;
@@ -212,8 +214,6 @@ int main(void) {
 
   ADC::init();
   ADC::calibrate();
-  LCD::init();
-  MicroSD::init();
 
   printf("Initializing tasks\n");
 
@@ -225,7 +225,5 @@ int main(void) {
   Scheduler::start();
 
   // will not get here ideally
-  while (1) {
-    __NOP();
-  }
+  ErrorHandler::handle(ErrorCode::UNKNOWN, __FILE__, __LINE__);
 }
