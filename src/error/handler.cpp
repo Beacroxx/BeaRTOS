@@ -95,6 +95,7 @@ const char* ErrorHandler::getErrorString(ErrorCode code) {
     case ErrorCode::CRITICAL_INTERRUPT_FAILURE: return "Critical interrupt failure";
     case ErrorCode::CRITICAL_TASK_FAILURE: return "Critical task failure";
     case ErrorCode::CRITICAL_SCHEDULER_FAILURE: return "Critical scheduler failure";
+    case ErrorCode::HAL_INIT_FAILED: return "HAL initialization failed";
     
     default: return "Unknown error code";
   }

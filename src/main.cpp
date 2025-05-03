@@ -192,7 +192,9 @@ void exitingTask(void) {
 }
 
 int main(void) {
-  HAL_Init();
+  if (HAL_Init() != HAL_OK) {
+    ErrorHandler::handle(ErrorCode::HAL_INIT_FAILED, __FILE__, __LINE__);
+  }
   SCB_EnableICache();
   SCB_EnableDCache();
   Init_MPU();
