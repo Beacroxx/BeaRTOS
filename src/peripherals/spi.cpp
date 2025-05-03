@@ -54,7 +54,6 @@ void SPI::init() {
 }
 
 void SPI::initDMA() {
-  __HAL_RCC_DMA1_CLK_ENABLE();
 
   hdma_spi4_tx.Instance = DMA1_Stream0;
   hdma_spi4_tx.Init.Request = DMA_REQUEST_SPI4_TX;

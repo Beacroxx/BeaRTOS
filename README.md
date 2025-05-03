@@ -43,10 +43,23 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
   - Hardware flow control
   - Button press detection with interrupt support
 - UART for sending messages to your computer:
-  - High-speed 921600 baud rate
+  - High-speed 1.5 Mbaud rate
   - 8-bit data, 1 stop bit, no parity
   - Hardware flow control support
-  - Interrupt-driven operation
+  - DMA-accelerated transmission with:
+    - Zero-copy buffer management
+    - Automatic memory allocation and cleanup
+    - Interrupt-driven operation
+    - Cooperative task yielding during transfers
+    - Efficient memory handling with custom allocator
+    - Automatic transfer completion detection
+    - Error handling and recovery
+  - Optimized for RTOS integration:
+    - Non-blocking operation
+    - Task-friendly yield mechanism
+    - Memory-safe buffer handling
+    - Automatic resource cleanup
+    - Interrupt-safe state management
 - Timer management for timing things
 - System clock setup with optimized CPU frequency
 - Error handling when things go wrong

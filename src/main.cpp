@@ -66,7 +66,12 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart) { UART::mspInit(huart); }
 // Redirect printf to UART
 int _write(int fd, const char *buf, int count) { return UART::write(fd, buf, count); }
 
-// DMA interrupt handler
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART1) {
+    UART::dmaCallback();
+  }
+}
+
 void DMA1_Stream0_IRQHandler(void) {
   HAL_DMA_IRQHandler(&SPI::hdma_spi4_tx);
 }
@@ -79,6 +84,14 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
   if (hspi->Instance == SPI4) {
     SPI::dmaTxCompleteCallback();
   }
+}
+
+void USART1_IRQHandler(void) {
+  HAL_UART_IRQHandler(&UART::huart1);
+}
+
+void DMA1_Stream5_IRQHandler(void) {
+  HAL_DMA_IRQHandler(&UART::hdma_usart1_tx);
 }
 
 void EXTI15_10_IRQHandler(void) {
@@ -326,9 +339,9 @@ int main(void) {
   if (HAL_Init() != HAL_OK) {
     ErrorHandler::handle(ErrorCode::HAL_INIT_FAILED, __FILE__, __LINE__);
   }
+  Init_MPU();
   SCB_EnableICache();
   SCB_EnableDCache();
-  Init_MPU();
   SystemClock::init();
   SystemTick::init();
   GPIO::init();

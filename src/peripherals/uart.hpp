@@ -8,7 +8,12 @@ public:
   static void init();
   static void mspInit(UART_HandleTypeDef *huart);
   static int write(int fd, const char *buf, int count);
+  static void dmaCallback();
+
+  static UART_HandleTypeDef huart1;
+  static DMA_HandleTypeDef hdma_usart1_tx;
 
 private:
-  static UART_HandleTypeDef huart1;
+  static uint8_t *txBuffer;
+  static bool dmaBusy;
 }; 

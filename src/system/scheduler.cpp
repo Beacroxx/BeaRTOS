@@ -120,11 +120,14 @@ void Scheduler::taskExit() {
   SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
-void Scheduler::yield() { SCB->ICSR = SCB_ICSR_PENDSVSET_Msk; }
+void Scheduler::yield() {
+  if (!active) return; // If scheduler is not active, do nothing
+  SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
 
 void Scheduler::yieldDelay(uint32_t ms) {
-  // if no tasks, just delay
-  if (tasks == nullptr) {
+  if (!active || tasks == nullptr) {
+    // If scheduler is not active or no tasks exist, just use HAL_Delay
     HAL_Delay(ms);
     return;
   }
