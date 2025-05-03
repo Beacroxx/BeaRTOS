@@ -19,6 +19,24 @@ A simple (and finally stable) RTOS implementation for STM32H7 microcontrollers. 
   - Cacheable memory regions
   - Non-shareable memory access
   - Full access permissions
+- Comprehensive error handling system with:
+  - Detailed error codes categorized by severity
+  - Automatic error reporting over UART (if possible)
+  - Critical error detection and hard fault triggering
+  - Non-critical error handling with graceful recovery
+  - Error categories:
+    - System corruption errors (hard fault)
+    - Recoverable system errors
+    - Peripheral initialization errors
+    - Storage errors
+    - Hardware errors
+    - Critical system failures (hard fault)
+  - Visual error indication through LED patterns
+  - File and line number tracking for debugging
+  - Error message formatting with:
+    - Error code in hexadecimal
+    - Human-readable error description
+    - Source file and line number
 - GPIO controls for your LEDs and buttons:
   - LED toggle and state control
   - High-speed output configuration

@@ -33,7 +33,7 @@ void SPI::init() {
   hspi4.Init.IOSwap = SPI_IO_SWAP_DISABLE;	
 
 	if (HAL_SPI_Init(&hspi4) != HAL_OK) {
-		ErrorHandler::handle();
+		ErrorHandler::handle(ErrorCode::SPI_INIT_FAILED);
 	}
 
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -71,7 +71,7 @@ void SPI::initDMA() {
   hdma_spi4_tx.Init.PeriphBurst = DMA_PBURST_SINGLE;
 
   if (HAL_DMA_Init(&hdma_spi4_tx) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::DMA_INIT_FAILED, __FILE__, __LINE__);
   }
 
   __HAL_LINKDMA(&hspi4, hdmatx, hdma_spi4_tx);

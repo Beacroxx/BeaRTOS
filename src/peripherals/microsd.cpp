@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 SD_HandleTypeDef MicroSD::hsd;
-
+bool MicroSD::isInitialized = false;
 void MicroSD::init() {
   // Configure GPIO pins
   GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -41,39 +41,51 @@ void MicroSD::init() {
 	__HAL_RCC_SDMMC1_RELEASE_RESET();
 
   if (HAL_SD_Init(&hsd) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::SD_CARD_INIT_FAILED, __FILE__, __LINE__);
+    isInitialized = false;
+    return;
   }
 
 	// set 4 bit mode
 	if (HAL_SD_ConfigWideBusOperation(&hsd, SDMMC_BUS_WIDE_4B) != HAL_OK) {
+    ErrorHandler::handle(ErrorCode::SD_CARD_BUS_WIDTH_ERROR, __FILE__, __LINE__);
+    isInitialized = false;
+    return;
 	}
+
+  isInitialized = true;
 }
 
 void MicroSD::readBlocks(uint8_t* pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
+  if (!isInitialized) return; // return silently if not initialized
 	__disable_irq(); // ensure no interrupts during read
   if (HAL_SD_ReadBlocks(&hsd, pData, blockAddr, numOfBlocks, timeout) != HAL_OK) {
-    printf("Failed to read blocks\n");
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::SD_CARD_READ_FAILED, __FILE__, __LINE__);
   }
 	__enable_irq();
 }
 
 void MicroSD::writeBlocks(uint8_t* pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
+  if (!isInitialized) return; // return silently if not initialized
 	__disable_irq(); // ensure no interrupts during write
   if (HAL_SD_WriteBlocks(&hsd, pData, blockAddr, numOfBlocks, timeout) != HAL_OK) {
-    printf("Failed to write blocks\n");
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::SD_CARD_WRITE_FAILED, __FILE__, __LINE__);
   }
 	__enable_irq();
 }
 
 uint64_t MicroSD::getCardInfo() {
+  if (!isInitialized) return 0; // return 0 if not initialized
   HAL_SD_CardInfoTypeDef cardInfo;
   if (HAL_SD_GetCardInfo(&hsd, &cardInfo) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::SD_CARD_NOT_PRESENT, __FILE__, __LINE__);
   }
 	uint64_t faketuple;
 	faketuple = (uint64_t)cardInfo.BlockNbr << 32;
 	faketuple |= (uint64_t)cardInfo.BlockSize;
   return faketuple;
 } 
+
+bool MicroSD::available() {
+  return isInitialized;
+}

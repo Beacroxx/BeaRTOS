@@ -49,7 +49,9 @@ void SysTick_Handler(void) {
 }
 
 // HardFault interrupt handler
-void HardFault_Handler(void) { ErrorHandler::hardFault(); }
+void HardFault_Handler(void) { 
+  ErrorHandler::hardFault(ErrorCode::HARD_FAULT, __FILE__, __LINE__); 
+}
 
 // PendSV interrupt handler
 void PendSV_Handler(void) {
@@ -104,12 +106,16 @@ void Init_MPU() {
 
 // SD card task
 void task1(void) {
-  uint64_t cardInfo = MicroSD::getCardInfo();
-  uint32_t cardSize = cardInfo >> 32;
-  uint32_t cardBlockSize = cardInfo & 0xFFFFFFFF;
-  uint64_t totalBytes = (uint64_t)cardSize * (uint64_t)cardBlockSize;
-  uint32_t totalMB = totalBytes / (1024 * 1024);
-  printf("Card size: %lu blocks, %lu MB\n", cardSize, totalMB);
+  if (MicroSD::available()) {
+    uint64_t cardInfo = MicroSD::getCardInfo();
+    uint32_t cardSize = cardInfo >> 32;
+    uint32_t cardBlockSize = cardInfo & 0xFFFFFFFF;
+    uint64_t totalBytes = (uint64_t)cardSize * (uint64_t)cardBlockSize;
+    uint32_t totalMB = totalBytes / (1024 * 1024);
+    printf("Card size: %lu blocks, %lu MB\n", cardSize, totalMB);
+  } else {
+    printf("Card not available\n");
+  }
 
   while (1) {
     printf("Task 1\n");
@@ -145,9 +151,9 @@ void task2(void) {
     sprintf(string, "Frame time: %lu ms (%lu Hz)  ", dt, 1000 / dt);
     LCD::drawString(0, 12, 12, string);
     LCD::update();
-    sprintf(string, "Flash: %lu/%lu KB  ", flash.used / 1024, flash.size / 1024);
+    sprintf(string, "Flash: %lu / %lu KB  ", flash.used / 1024, flash.size / 1024);
     LCD::drawString(0, 24, 12, string);
-    sprintf(string, "RAM: %lu/%lu KB  ", (ram.used + heapUsed) / 1024, (ram.size + heapFree) / 1024);
+    sprintf(string, "RAM: %lu / %lu KB  ", (ram.used + heapUsed) / 1024, (ram.size + heapFree) / 1024);
     LCD::drawString(0, 36, 12, string);
     sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
     LCD::drawString(0, 48, 12, string);
@@ -178,12 +184,11 @@ void calledTask(void) {
 }
 
 void exitingTask(void) {
-  printf("Exiting task a\n");
+  printf("Exiting task starting\n");
   Scheduler::yieldDelay(500);
   Scheduler::initTaskStack(calledTask, 128, "calledTask");
   Scheduler::yieldDelay(500);
-  printf("Exiting task b\n");
-  return;
+  printf("Exiting task done\n");
 }
 
 int main(void) {

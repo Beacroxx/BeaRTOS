@@ -30,7 +30,7 @@ void ADC::init() {
   hadc3.Init.OversamplingMode = DISABLE;
 
   if (HAL_ADC_Init(&hadc3) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::ADC_INIT_FAILED, __FILE__, __LINE__);
   }
 
   sConfig1.Channel = ADC_CHANNEL_TEMPSENSOR; // temperature sensor
@@ -42,29 +42,29 @@ void ADC::init() {
   sConfig1.OffsetSign = ADC3_OFFSET_SIGN_NEGATIVE;
 
   if (HAL_ADC_ConfigChannel(&hadc3, &sConfig1) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
   }
 
 	sConfig1.Rank = ADC_REGULAR_RANK_2;
 	if (HAL_ADC_ConfigChannel(&hadc3, &sConfig1) != HAL_OK) {
-		ErrorHandler::handle();
+		ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
 	}
 }
 
 void ADC::calibrate() {
 	if (HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK) {
-		ErrorHandler::handle();
+		ErrorHandler::handle(ErrorCode::ADC_CALIBRATION_FAILED, __FILE__, __LINE__);
 	}
 }
 
 uint32_t ADC::read() {
 	if (HAL_ADC_Start(&hadc3) != HAL_OK) {
-		ErrorHandler::handle();
+		ErrorHandler::handle(ErrorCode::ADC_READ_FAILED, __FILE__, __LINE__);
 	}
 
 	// wait for conversion to complete
 	if (HAL_ADC_PollForConversion(&hadc3, 1000) != HAL_OK) {
-		ErrorHandler::handle();
+		ErrorHandler::handle(ErrorCode::ADC_READ_FAILED, __FILE__, __LINE__);
 	}
 
 	return HAL_ADC_GetValue(&hadc3);

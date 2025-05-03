@@ -25,13 +25,13 @@ void Timer::initTimer1() {
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim1) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::TIMER_INIT_FAILED, __FILE__, __LINE__);
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::TIMER_CONFIG_FAILED, __FILE__, __LINE__);
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
@@ -41,7 +41,7 @@ void Timer::initTimer1() {
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::TIMER_PWM_CONFIG_FAILED, __FILE__, __LINE__);
   }
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
@@ -55,7 +55,7 @@ void Timer::initTimer1() {
   sBreakDeadTimeConfig.Break2Filter = 0;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
   if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK) {
-    ErrorHandler::handle();
+    ErrorHandler::handle(ErrorCode::TIMER_CONFIG_FAILED, __FILE__, __LINE__);
   }
 
   GPIO_InitTypeDef GPIO_InitStruct = {0};
