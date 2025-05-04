@@ -44,12 +44,12 @@ void SystemClock::configOscillator() {
   PeriphClkInit.PLL2.PLL2N = 112; // 560 MHz
   PeriphClkInit.PLL2.PLL2P = 2; // unused
   PeriphClkInit.PLL2.PLL2Q = 8; // 70 MHz (PCLK2) for SPI4 (35 MHz with prescaler 2)
-  PeriphClkInit.PLL2.PLL2R = 2; // unused
+  PeriphClkInit.PLL2.PLL2R = 2; //
   PeriphClkInit.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_1;
   PeriphClkInit.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInit.PLL2.PLL2FRACN = 0;
   PeriphClkInit.Spi45ClockSelection = RCC_SPI45CLKSOURCE_PLL2;
-  PeriphClkInit.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL2;
+  PeriphClkInit.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL;
   PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_CLKP; 
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
     ErrorHandler::handle();

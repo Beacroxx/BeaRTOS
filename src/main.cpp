@@ -36,9 +36,12 @@
 #include "system/memory.hpp"
 #include "peripherals/microsd.hpp"
 #include "peripherals/adc.hpp"
+#include "middleware/FatFs/fatfs.hpp"
 
 #include <stdio.h>
 #include <string.h>
+
+#define UART_TASK_PRINTS 0
 
 extern "C" {
 
@@ -142,13 +145,35 @@ void task1(void) {
     uint64_t totalBytes = (uint64_t)cardSize * (uint64_t)cardBlockSize;
     uint32_t totalMB = totalBytes / (1024 * 1024);
     printf("Card size: %lu blocks, %lu MB\n", cardSize, totalMB);
+
+#if ENABLE_FATFS
+    // format card
+    FRESULT res = FatFs::mount("0:");
+    if (res != FR_OK) {
+      printf("Failed to mount SD card: %d\n", res);
+      return;
+    }
+    printf("Mounted SD card\n");
+    
+    // print detailed info about the filesystem
+    DWORD freeClusters;
+    FATFS* fs;
+    res = FatFs::getFreeSpace("0:", &freeClusters, &fs);
+    if (res != FR_OK) {
+      printf("Failed to get free space: %d\n", res);
+      return;
+    }
+    printf("Free space: %d MB\n", freeClusters * fs->csize / 1024 / 1024 * 512);
   } else {
     printf("Card not available\n");
   }
-  #endif
+#endif // ENABLE_FATFS
+#endif // ENABLE_MICROSD
 
   while (1) {
+#if UART_TASK_PRINTS
     printf("Task 1\n");
+#endif
 #if ENABLE_ALLOCATION_TRACKER
     Memory::printAllocations();
 #endif
@@ -325,26 +350,36 @@ void task2(void) {
 
 void task3(void) {
   while (1) {
+#if UART_TASK_PRINTS
     printf("Task 3\n");
+#endif
     Scheduler::yieldDelay(1000);
     GPIO::toggleLed();
   }
 }
 
 void calledTask(void) {
+#if UART_TASK_PRINTS
   printf("called task\n");
+#endif  
   while (1) {
+#if UART_TASK_PRINTS
     printf("called task\n");
+#endif
     Scheduler::yieldDelay(500);
   }
 }
 
 void exitingTask(void) {
+#if UART_TASK_PRINTS
   printf("Exiting task starting\n");
+#endif
   Scheduler::yieldDelay(500);
   Scheduler::initTaskStack(calledTask, 256, "calledTask");
   Scheduler::yieldDelay(500);
+#if UART_TASK_PRINTS
   printf("Exiting task done\n");
+#endif
 }
 
 int main(void) {

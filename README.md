@@ -85,6 +85,25 @@ build_flags =
   - Automatic transfer completion
   - Error recovery
 
+#### FatFS Middleware
+- Full FatFS implementation (R0.15)
+- Multiple volume support
+- Long filename support (LFN)
+- Dynamic memory allocation
+- File system operations:
+  - File open/close
+  - Read/write operations
+  - Directory operations
+  - File information retrieval
+- Error handling and recovery
+- Task-safe operations
+- Performance optimizations:
+  - Buffer management
+  - Cache utilization
+  - Zero-copy operations
+- Integration with microSD card driver
+- File system monitoring and statistics
+
 #### LCD Display (ST7735)
 - Text rendering with dual font sizes:
   - 12x6 pixel compact font
@@ -138,9 +157,12 @@ build_flags =
 ## Project Structure
 ```
 src/
-├── error/       # Error handling and reporting
-├── peripherals/ # Hardware peripheral drivers
-└── system/      # RTOS core and system management
+├── error/                 # Error handling and reporting
+├── peripherals/           # Hardware peripheral drivers
+├── system/                # RTOS core and system management
+└── middleware/            # Middleware
+    ├── FatFs/             # FatFS implementation
+    └── diskio_microsd.cpp # MicroSD disk I/O module
 ```
 
 ## Requirements
