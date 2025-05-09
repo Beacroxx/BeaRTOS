@@ -11,6 +11,18 @@ A (potentially) robust and stable RTOS implementation for STM32H7 microcontrolle
 - Task creation and termination management
 - Unique task naming system
 
+### Dynamic Binary Loading
+- Runtime loading and execution of compiled binaries
+- Support for dynamic task creation from external binaries
+- Integration with FatFS for binary storage and loading
+- Symbol table management for dynamic linking
+- Important considerations:
+  - Symbols not used in the main program are optimized out and unavailable
+  - Firmware recompilation requires recompilation of all dynamic binaries
+  - Dynamic binaries must be compiled with matching symbol tables
+  - Limited to functions and symbols explicitly included in the main firmware
+  - Supports basic C++ features and everything in the RTOS core that is not optimized out
+
 ### Memory Management
 - Memory Protection Unit (MPU) configuration:
   - AXI SRAM region protection

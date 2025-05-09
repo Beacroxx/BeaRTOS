@@ -19,8 +19,8 @@ void ErrorHandler::handle(ErrorCode code, const char* file, int line) {
 
 // Hard fault handler
 void ErrorHandler::hardFault(ErrorCode code, const char* file, int line) {
-  reportError(code, file, line);
-  
+  // reportError(code, file, line); // no point, UART is not working in a hard fault
+
   while (1) {
     GPIO::toggleLed();
     // volatile loop delay because HAL is deactivated in a hard fault

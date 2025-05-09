@@ -5,17 +5,17 @@
 #include <stdio.h>
 
 FATFS FatFs::fs;
-bool FatFs::isMounted = false;
+bool FatFs::isMounted_ = false;
 
 FRESULT FatFs::mount(const char* path) {
   FRESULT res = f_mount(&fs, path, 1);
-  isMounted = (res == FR_OK);
+  isMounted_ = (res == FR_OK);
   return res;
 }
 
 FRESULT FatFs::unmount(const char* path) {
   FRESULT res = f_mount(nullptr, path, 0);
-  isMounted = (res != FR_OK);
+  isMounted_ = (res != FR_OK);
   return res;
 }
 

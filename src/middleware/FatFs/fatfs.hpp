@@ -9,6 +9,7 @@ class FatFs {
   public:
     static FRESULT mount(const char* path);
     static FRESULT unmount(const char* path);
+    static bool isMounted() { return isMounted_; }
     static FRESULT openFile(const char* path, FIL* file, BYTE mode);
     static FRESULT closeFile(FIL* file);
     static FRESULT readFile(FIL* file, void* buffer, UINT bytesToRead, UINT* bytesRead);
@@ -45,7 +46,7 @@ class FatFs {
 
   private:
     static FATFS fs;
-    static bool isMounted;
+    static bool isMounted_;
 }; 
 
 #endif

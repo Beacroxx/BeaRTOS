@@ -113,14 +113,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 }
-
 void Init_MPU() {
   MPU_Region_InitTypeDef MPU_InitStruct = {0};
   HAL_MPU_Disable();
 
+  // Configure AXI SRAM region (data only)
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
   MPU_InitStruct.BaseAddress = 0x24000000; // AXI SRAM base
-  MPU_InitStruct.Size = MPU_REGION_SIZE_1MB; // Adjust as needed
+  MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE; // Write-through
   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
@@ -130,6 +130,18 @@ void Init_MPU() {
   MPU_InitStruct.SubRegionDisable = 0x00;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
 
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  MPU_InitStruct.BaseAddress = 0x20000000; // DTCM base address
+  MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x00;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
@@ -164,6 +176,56 @@ void task1(void) {
       return;
     }
     printf("Free space: %d MB\n", freeClusters * fs->csize / 1024 / 1024 * 512);
+
+    // list files
+    DIR dir;
+    FILINFO fileInfo;
+    res = FatFs::openDir("0:", &dir);
+    if (res != FR_OK) {
+      printf("Failed to open directory: %d\n", res);
+      return;
+    }
+    printf("Files in SD card:\n");
+    
+    while (true) {
+      res = FatFs::readDir(&dir, &fileInfo);
+      if (res != FR_OK || fileInfo.fname[0] == 0) {
+        break;
+      }
+      
+      if (fileInfo.fattrib & AM_DIR) {
+        printf("  [DIR] %s\n", fileInfo.fname);
+      } else {
+        printf("  [FIL] %s (%lu bytes)\n", fileInfo.fname, fileInfo.fsize);
+      }
+    }
+
+    FatFs::closeDir(&dir);
+
+    // open file dynamic_task.bin
+    FIL file;
+    res = FatFs::openFile("0:/dynamic_task.bin", &file, FA_READ);
+    if (res != FR_OK) {
+      printf("Failed to open dynamic_task.bin: %d\n", res);
+      return;
+    }
+
+    uint32_t fileSize = f_size(&file);
+    void *task = Memory::malloc(fileSize);
+
+    // load file into fileSize
+    res = FatFs::readFile(&file, task, fileSize, nullptr);
+    if (res != FR_OK) {
+      printf("Failed to read dynamic_task.bin: %d\n", res);
+      return;
+    }
+
+    // close file
+    FatFs::closeFile(&file);
+
+    // execute task
+    Scheduler::initTaskStack((void (*)(void))task, 512, "dynamic_task");
+
   } else {
     printf("Card not available\n");
   }
@@ -174,6 +236,7 @@ void task1(void) {
 #if UART_TASK_PRINTS
     printf("Task 1\n");
 #endif
+
 #if ENABLE_ALLOCATION_TRACKER
     Memory::printAllocations();
 #endif
@@ -339,7 +402,7 @@ void task2(void) {
       avg /= LCD::WIDTH;
       sprintf(string, "Avg: %d", avg);
       LCD::drawString(0, LCD::HEIGHT - 12, 12, string);
-
+      
       // Update the display
       LCD::update();
     }
@@ -414,14 +477,13 @@ int main(void) {
 
   printf("Initializing tasks\n");
 
-  Scheduler::initTaskStack(task1, 256, "task1");
+  Scheduler::initTaskStack(task1, 512, "task1");
 
   #if ENABLE_LCD
   Scheduler::initTaskStack(task2, 256, "task2");
   #endif
 
   Scheduler::initTaskStack(task3, 256, "task3");
-  Scheduler::initTaskStack(exitingTask, 256, "exitingTask");
 
   Scheduler::start();
 
