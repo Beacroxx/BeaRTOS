@@ -202,6 +202,7 @@ void task1(void) {
 
     FatFs::closeDir(&dir);
 
+#if ENABLE_DYN_BIN
     // open file dynamic_task.bin
     FIL file;
     res = FatFs::openFile("0:/dynamic_task.bin", &file, FA_READ);
@@ -225,9 +226,12 @@ void task1(void) {
 
     // execute task
     Scheduler::initTaskStack((void (*)(void))task, 512, "dynamic_task");
+#endif // ENABLE_DYN_BIN
 
   } else {
     printf("Card not available\n");
+  }
+#else // ENABLE_FATFS
   }
 #endif // ENABLE_FATFS
 #endif // ENABLE_MICROSD
@@ -475,7 +479,7 @@ int main(void) {
   ADC::init();
   ADC::calibrate();
 
-  printf("Initializing tasks\n");
+  printf("Starting tasks\n");
 
   Scheduler::initTaskStack(task1, 512, "task1");
 
