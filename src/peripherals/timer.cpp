@@ -4,11 +4,11 @@
 #include "../peripherals/gpio.hpp"
 #include "stm32h7xx_hal.h"
 
-TIM_HandleTypeDef Timer::htim1;
-
-void Timer::init() {
-  initTimer1();
+namespace Timer {
+TIM_HandleTypeDef htim1;
 }
+
+void Timer::init() { initTimer1(); }
 
 void Timer::initTimer1() {
   __HAL_RCC_TIM1_CLK_ENABLE();

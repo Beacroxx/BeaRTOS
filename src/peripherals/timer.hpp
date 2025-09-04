@@ -4,12 +4,8 @@
 #include "stm32h7xx_hal.h"
 #include "stm32h7xx_hal_tim.h"
 
-class Timer {
-public:
-  static void init();
-
-  static TIM_HandleTypeDef htim1;
-
-private:
-  static void initTimer1();
-}; 
+namespace Timer {
+void init();
+extern TIM_HandleTypeDef htim1;
+void initTimer1();
+} // namespace Timer

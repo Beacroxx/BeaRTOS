@@ -1,15 +1,17 @@
 #include "spi.hpp"
 
-#include "../error/handler.hpp"	
+#include "../error/handler.hpp"
 #include "lcd.hpp"
 
-SPI_HandleTypeDef SPI::hspi4;
-DMA_HandleTypeDef SPI::hdma_spi4_tx;
+namespace SPI {
+SPI_HandleTypeDef hspi4;
+DMA_HandleTypeDef hdma_spi4_tx;
+} // namespace SPI
 
 void SPI::init() {
   __HAL_RCC_SPI4_CLK_ENABLE();
 
-	hspi4.Instance = SPI4;
+  hspi4.Instance = SPI4;
   hspi4.Init.Mode = SPI_MODE_MASTER;
   hspi4.Init.Direction = SPI_DIRECTION_1LINE;
   hspi4.Init.DataSize = SPI_DATASIZE_8BIT;
@@ -30,19 +32,18 @@ void SPI::init() {
   hspi4.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
   hspi4.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
   hspi4.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  hspi4.Init.IOSwap = SPI_IO_SWAP_DISABLE;	
+  hspi4.Init.IOSwap = SPI_IO_SWAP_DISABLE;
 
-	if (HAL_SPI_Init(&hspi4) != HAL_OK) {
-		ErrorHandler::handle(ErrorCode::SPI_INIT_FAILED);
-	}
+  if (HAL_SPI_Init(&hspi4) != HAL_OK) {
+    ErrorHandler::handle(ErrorCode::SPI_INIT_FAILED);
+  }
 
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(hspi4.Instance==SPI4)
-  {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if (hspi4.Instance == SPI4) {
     __HAL_RCC_SPI4_CLK_ENABLE();
 
     __HAL_RCC_GPIOE_CLK_ENABLE();
-    GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_14;
+    GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_14;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -87,7 +88,7 @@ void SPI::initDMA() {
 
 void SPI::dmaTxCompleteCallback() {
 #if ENABLE_LCD
-  LCD_CS_SET;  // Release CS after DMA transfer
+  LCD_CS_SET; // Release CS after DMA transfer
   LCD::dma_busy = false;
 #endif
 }

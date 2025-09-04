@@ -1,7 +1,5 @@
 /* Linker script for dynamic tasks */
-
-/* Include symbol definitions */
-INCLUDE "symbols.ld"
+/* Independent dynamic binary using syscalls */
 
 MEMORY
 {

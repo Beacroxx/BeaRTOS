@@ -1,13 +1,19 @@
 #include "uart.hpp"
-#include "../error/handler.hpp"
-#include "../system/scheduler.hpp"
-#include "../system/memory.hpp"
-#include <cstring>
 
-UART_HandleTypeDef UART::huart1;
-DMA_HandleTypeDef UART::hdma_usart1_tx;
-uint8_t *UART::txBuffer = nullptr;
-bool UART::dmaBusy = false;
+#include "../error/handler.hpp"
+#include "../system/memory.hpp"
+#include "../system/scheduler.hpp"
+
+#include <cstring>
+#include <deque>
+#include <string>
+
+namespace UART {
+UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_tx;
+std::deque<std::string> txBuffers;
+bool dmaBusy = false;
+} // namespace UART
 
 void UART::init() {
   // Initialize DMA controller
@@ -57,8 +63,6 @@ void UART::init() {
 
   HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
-
-  txBuffer = static_cast<uint8_t *>(Memory::malloc(1024, __FILE__, __LINE__));
 }
 
 void UART::mspInit(UART_HandleTypeDef *huart) {
@@ -77,25 +81,33 @@ void UART::mspInit(UART_HandleTypeDef *huart) {
   }
 }
 
-int UART::write(int fd, const char *buf, int count) {
-  if (count <= 0) return 0;
+int UART::write(const char *buf, int count) {
+  if (count <= 0)
+    return 0;
 
-  // busy wait for any ongoing transfer to complete
-  while (dmaBusy) {
-    asm volatile("nop");
-  }
+  txBuffers.push_back(std::string(buf, count));
 
-  memcpy(txBuffer, buf, count);
-
-  if (HAL_UART_Transmit_DMA(&huart1, txBuffer, count) != HAL_OK) {
-    ErrorHandler::handle(ErrorCode::UART_TRANSMIT_FAILED, __FILE__, __LINE__);
-    return -1;
+  if (!dmaBusy) {
+    const char *txBuffer = txBuffers.front().c_str();
+    if (HAL_UART_Transmit_DMA(&huart1, (uint8_t *)txBuffer, txBuffers.front().size()) != HAL_OK) {
+      ErrorHandler::handle(ErrorCode::UART_TRANSMIT_FAILED, __FILE__, __LINE__);
+      return -1;
+    }
   }
 
   dmaBusy = true;
   return count;
-} 
+}
 
 void UART::dmaCallback() {
-  dmaBusy = false;
+  txBuffers.pop_front();
+  if (txBuffers.empty()) {
+    dmaBusy = false;
+    return;
+  }
+
+  const char *txBuffer = txBuffers.front().c_str();
+  if (HAL_UART_Transmit_DMA(&huart1, (uint8_t *)txBuffer, txBuffers.front().size()) != HAL_OK) {
+    ErrorHandler::handle(ErrorCode::UART_TRANSMIT_FAILED, __FILE__, __LINE__);
+  }
 }

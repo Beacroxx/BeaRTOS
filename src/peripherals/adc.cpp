@@ -1,11 +1,14 @@
 #include "adc.hpp"
+
 #include "error/handler.hpp"
 
 #include <stdio.h>
 
-ADC_HandleTypeDef ADC::hadc3;
-ADC_ChannelConfTypeDef ADC::sConfig1;
-uint32_t ADC::values[2];
+namespace ADC {
+ADC_HandleTypeDef hadc3;
+ADC_ChannelConfTypeDef sConfig1;
+uint32_t values[2];
+} // namespace ADC
 
 void ADC::init() {
   __HAL_RCC_ADC3_CLK_ENABLE();
@@ -46,18 +49,18 @@ void ADC::init() {
     ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
   }
 
-	sConfig1.Channel = ADC_CHANNEL_11; // PC1
+  sConfig1.Channel = ADC_CHANNEL_11; // PC1
   sConfig1.Rank = ADC_REGULAR_RANK_2;
   sConfig1.SamplingTime = ADC3_SAMPLETIME_24CYCLES_5; // Faster sampling for scope
-	if (HAL_ADC_ConfigChannel(&hadc3, &sConfig1) != HAL_OK) {
-		ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
-	}
+  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig1) != HAL_OK) {
+    ErrorHandler::handle(ErrorCode::ADC_CHANNEL_CONFIG_FAILED, __FILE__, __LINE__);
+  }
 }
 
 void ADC::calibrate() {
-	if (HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK) {
-		ErrorHandler::handle(ErrorCode::ADC_CALIBRATION_FAILED, __FILE__, __LINE__);
-	}
+  if (HAL_ADCEx_Calibration_Start(&hadc3, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK) {
+    ErrorHandler::handle(ErrorCode::ADC_CALIBRATION_FAILED, __FILE__, __LINE__);
+  }
 }
 
 void ADC::read() {
@@ -76,10 +79,10 @@ void ADC::read() {
 
 float ADC::getTemperature() {
   read();
-	return (((float)values[0] * 3300) / 4096 - V30) / AVG_SLOPE + 30;
+  return (((float)values[0] * 3300) / 4096 - V30) / AVG_SLOPE + 30;
 }
 
 uint32_t ADC::getVoltage() {
   read();
-	return ((float)values[1] * 3300) / 4096;
+  return ((float)values[1] * 3300) / 4096;
 }

@@ -3,16 +3,13 @@
 #include "stm32h7xx.h"
 #include "stm32h7xx_hal.h"
 
-class SystemClock {
-public:
-  static void init();
-  static void exitRun0Mode();
-
-private:
-  static void configOscillator();
-  static void configClock();
-};
+namespace SystemClock {
+void init();
+void exitRun0Mode();
+void configOscillator();
+void configClock();
+} // namespace SystemClock
 
 extern "C" {
-  void ExitRun0Mode(void);
-} 
+void ExitRun0Mode(void);
+}

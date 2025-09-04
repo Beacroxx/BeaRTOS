@@ -3,8 +3,7 @@
 #include "stm32h7xx.h"
 #include "stm32h7xx_hal.h"
 
-class SystemTick {
-public:
-  static void init();
-  static void handler();
-}; 
+namespace SystemTick {
+void init();
+void handler();
+} // namespace SystemTick

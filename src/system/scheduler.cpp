@@ -2,16 +2,24 @@
 
 #include "memory.hpp"
 #include "stm32h7xx_hal.h"
+
 #include <cstdio>
 #include <cstring>
 
+namespace Scheduler {
 // initialize variables
-uint32_t Scheduler::taskCount = 0;
-TCB *Scheduler::tasks = nullptr;
-TCB *Scheduler::currentTask = nullptr;
-TCB *Scheduler::nextTask = nullptr;
-uint32_t Scheduler::taskIndex = 0;
-bool Scheduler::active = false;
+uint32_t taskCount = 0;
+TCB *tasks = nullptr;
+TCB *currentTask = nullptr;
+TCB *nextTask = nullptr;
+uint32_t taskIndex = 0;
+bool active = false;
+uint32_t tasksInYieldDelay = 0;
+uint32_t lastIdleCheckTime = 0;
+uint32_t windowStartTime = 0;
+uint32_t windowIdleTime = 0;
+uint32_t windowTotalTime = 0;
+} // namespace Scheduler
 
 void Scheduler::initTaskStack(void (*task)(void), uint32_t stackSize, const char *name) {
   __disable_irq();
@@ -115,6 +123,7 @@ void Scheduler::updateNextTask() {
   do {
     nextTask = tasks + taskIndex;
     taskIndex = (taskIndex + 1) % taskCount;
-    if (taskIndex == startIndex) break;
+    if (taskIndex == startIndex)
+      break;
   } while (nextTask->state != TaskState::READY && nextTask->state != TaskState::RUNNING);
 }

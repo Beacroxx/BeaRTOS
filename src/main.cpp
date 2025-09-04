@@ -1,18 +1,18 @@
 /*
  * MIT License
- * 
+ *
  * Copyright (c) 2024 Beacrox
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,23 +20,24 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
-*/
+ */
 
 #include "error/handler.hpp"
+#include "middleware/FatFs/fatfs.hpp"
+#include "peripherals/adc.hpp"
 #include "peripherals/gpio.hpp"
+#include "peripherals/lcd.hpp"
+#include "peripherals/microsd.hpp"
+#include "peripherals/spi.hpp"
 #include "peripherals/timer.hpp"
 #include "peripherals/uart.hpp"
 #include "stm32h7xx.h"
 #include "stm32h7xx_hal.h"
 #include "system/clock.hpp"
-#include "system/scheduler.hpp"
-#include "system/systick.hpp"
-#include "peripherals/lcd.hpp"
-#include "peripherals/spi.hpp"
 #include "system/memory.hpp"
-#include "peripherals/microsd.hpp"
-#include "peripherals/adc.hpp"
-#include "middleware/FatFs/fatfs.hpp"
+#include "system/scheduler.hpp"
+#include "system/syscall.hpp"
+#include "system/systick.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -52,18 +53,15 @@ void SysTick_Handler(void) {
 }
 
 // Default handler
-void _Default_Handler(void) {
-  ErrorHandler::handle(ErrorCode::UNEXPECTED_INTERRUPT, __FILE__, __LINE__);
-}
+void _Default_Handler(void) { ErrorHandler::handle(ErrorCode::UNEXPECTED_INTERRUPT, __FILE__, __LINE__); }
 
 // HardFault interrupt handler
-void HardFault_Handler(void) { 
-  ErrorHandler::hardFault(ErrorCode::HARD_FAULT, __FILE__, __LINE__); 
-}
+void HardFault_Handler(void) { ErrorHandler::hardFault(ErrorCode::HARD_FAULT, __FILE__, __LINE__); }
 
 // PendSV exception handler
 void PendSV_Handler(void) {
-  if (!Scheduler::active) return; // If scheduler is not active, do nothing, no tasks to execute
+  if (!Scheduler::active)
+    return; // If scheduler is not active, do nothing, no tasks to execute
   Scheduler::updateNextTask();
   Scheduler::switchTasks();
 }
@@ -72,7 +70,15 @@ void PendSV_Handler(void) {
 void HAL_UART_MspInit(UART_HandleTypeDef *huart) { UART::mspInit(huart); }
 
 // Redirect printf to UART
-int _write(int fd, const char *buf, int count) { return UART::write(fd, buf, count); }
+int _write(int fd, const char *buf, int count) {
+  syscall(SYS_WRITE, &fd, (void *)buf, &count, 0);
+  return count;
+}
+
+int _read(int fd, char *buf, int count) {
+  syscall(SYS_READ, &fd, (void *)buf, &count, 0);
+  return count;
+}
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == USART1) {
@@ -80,13 +86,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
   }
 }
 
-void DMA1_Stream0_IRQHandler(void) {
-  HAL_DMA_IRQHandler(&SPI::hdma_spi4_tx);
-}
+void DMA1_Stream0_IRQHandler(void) { HAL_DMA_IRQHandler(&SPI::hdma_spi4_tx); }
 
-void SPI4_IRQHandler(void) {
-  HAL_SPI_IRQHandler(&SPI::hspi4);
-}
+void SPI4_IRQHandler(void) { HAL_SPI_IRQHandler(&SPI::hspi4); }
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
   if (hspi->Instance == SPI4) {
@@ -94,24 +96,17 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
   }
 }
 
-void USART1_IRQHandler(void) {
-  HAL_UART_IRQHandler(&UART::huart1);
-}
+void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&UART::huart1); }
 
-void DMA1_Stream5_IRQHandler(void) {
-  HAL_DMA_IRQHandler(&UART::hdma_usart1_tx);
-}
+void DMA1_Stream5_IRQHandler(void) { HAL_DMA_IRQHandler(&UART::hdma_usart1_tx); }
 
-void EXTI15_10_IRQHandler(void) {
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
-}
+void EXTI15_10_IRQHandler(void) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13); }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-  if(GPIO_Pin == GPIO_PIN_13) {
+  if (GPIO_Pin == GPIO_PIN_13) {
     GPIO::buttonPressed = true;
   }
 }
-
 }
 void Init_MPU() {
   MPU_Region_InitTypeDef MPU_InitStruct = {0};
@@ -149,7 +144,7 @@ void Init_MPU() {
 
 // SD card task
 void task1(void) {
-  #if ENABLE_MICROSD
+#if ENABLE_MICROSD
   if (MicroSD::available()) {
     uint64_t cardInfo = MicroSD::getCardInfo();
     uint32_t cardSize = cardInfo >> 32;
@@ -159,17 +154,16 @@ void task1(void) {
     printf("Card size: %lu blocks, %lu MB\n", cardSize, totalMB);
 
 #if ENABLE_FATFS
-    // format card
     FRESULT res = FatFs::mount("0:");
     if (res != FR_OK) {
       printf("Failed to mount SD card: %d\n", res);
       return;
     }
     printf("Mounted SD card\n");
-    
+
     // print detailed info about the filesystem
     DWORD freeClusters;
-    FATFS* fs;
+    FATFS *fs;
     res = FatFs::getFreeSpace("0:", &freeClusters, &fs);
     if (res != FR_OK) {
       printf("Failed to get free space: %d\n", res);
@@ -185,14 +179,15 @@ void task1(void) {
       printf("Failed to open directory: %d\n", res);
       return;
     }
+
     printf("Files in SD card:\n");
-    
+
     while (true) {
       res = FatFs::readDir(&dir, &fileInfo);
       if (res != FR_OK || fileInfo.fname[0] == 0) {
         break;
       }
-      
+
       if (fileInfo.fattrib & AM_DIR) {
         printf("  [DIR] %s\n", fileInfo.fname);
       } else {
@@ -231,7 +226,7 @@ void task1(void) {
   } else {
     printf("Card not available\n");
   }
-#else // ENABLE_FATFS
+#else  // ENABLE_FATFS
   }
 #endif // ENABLE_FATFS
 #endif // ENABLE_MICROSD
@@ -268,12 +263,12 @@ void task2(void) {
   // Variables for scrolling
   const uint8_t lineHeight = 12;
   const uint8_t screenHeight = LCD::HEIGHT;
-  const uint8_t maxVisibleLines = screenHeight / lineHeight;  // 6 lines can fit on screen
-  const uint8_t totalLines = 10;  // Increased for more info
-  const uint8_t scrollSpeed = 1; // Pixels to scroll per update
+  const uint8_t maxVisibleLines = screenHeight / lineHeight; // 6 lines can fit on screen
+  const uint8_t totalLines = 10;                             // Increased for more info
+  const uint8_t scrollSpeed = 1;                             // Pixels to scroll per update
   int16_t scrollPosition = 0;
   uint32_t lastScrollTime = HAL_GetTick();
-  const uint32_t scrollInterval = 50; // Reduced interval for smoother scrolling
+  const uint32_t scrollInterval = 50;  // Reduced interval for smoother scrolling
   const uint32_t pauseDuration = 2000; // 2 seconds pause at each end
   bool scrollingDown = true;
   uint32_t pauseStartTime = 0;
@@ -315,14 +310,14 @@ void task2(void) {
       LCD::drawString(0, 0 - scrollPosition, 12, string);
       sprintf(string, "Frame: %lu ms (%lu Hz)  ", dt, 1000 / dt);
       LCD::drawString(0, lineHeight - scrollPosition, 12, string);
-      
+
       // Uptime
       uint32_t hours = uptimeSeconds / 3600;
       uint32_t minutes = (uptimeSeconds % 3600) / 60;
       uint32_t seconds = uptimeSeconds % 60;
       sprintf(string, "Uptime: %02lu:%02lu:%02lu  ", hours, minutes, seconds);
       LCD::drawString(0, lineHeight * 2 - scrollPosition, 12, string);
-      
+
       // Memory Info
       sprintf(string, "Flash: %lu / %lu KB  ", flash.used / 1024, flash.size / 1024);
       LCD::drawString(0, lineHeight * 3 - scrollPosition, 12, string);
@@ -330,16 +325,16 @@ void task2(void) {
       LCD::drawString(0, lineHeight * 4 - scrollPosition, 12, string);
       sprintf(string, "Heap: %lu / %lu KB  ", heap.used / 1024, heap.size / 1024);
       LCD::drawString(0, lineHeight * 5 - scrollPosition, 12, string);
-      
+
       // Task Info
       sprintf(string, "Tasks: %d  ", Scheduler::taskCount);
       LCD::drawString(0, lineHeight * 6 - scrollPosition, 12, string);
-      
+
       // Temperature
       float temp = ADC::getTemperature();
       sprintf(string, "Core Temp: %d.%d C %c   ", (uint32_t)temp, (uint32_t)(temp * 10) % 10, temp > 80 ? '!' : ' ');
       LCD::drawString(0, lineHeight * 7 - scrollPosition, 12, string);
-      
+
       // Scroll position (debug)
       sprintf(string, "Scroll: %d  ", scrollPosition);
       LCD::drawString(0, lineHeight * 8 - scrollPosition, 12, string);
@@ -406,7 +401,7 @@ void task2(void) {
       avg /= LCD::WIDTH;
       sprintf(string, "Avg: %d", avg);
       LCD::drawString(0, LCD::HEIGHT - 12, 12, string);
-      
+
       // Update the display
       LCD::update();
     }
@@ -428,7 +423,7 @@ void task3(void) {
 void calledTask(void) {
 #if UART_TASK_PRINTS
   printf("called task\n");
-#endif  
+#endif
   while (1) {
 #if UART_TASK_PRINTS
     printf("called task\n");
@@ -463,14 +458,14 @@ int main(void) {
   Memory::init();
   SPI::init();
   Timer::init();
-  
-  #if ENABLE_MICROSD
-  MicroSD::init();
-  #endif
 
-  #if ENABLE_LCD
+#if ENABLE_MICROSD
+  MicroSD::init();
+#endif
+
+#if ENABLE_LCD
   LCD::init();
-  #endif
+#endif
 
   // enable temperature sensor
   ADC3_COMMON->CCR |= ADC_CCR_TSEN;
@@ -483,9 +478,9 @@ int main(void) {
 
   Scheduler::initTaskStack(task1, 512, "task1");
 
-  #if ENABLE_LCD
+#if ENABLE_LCD
   Scheduler::initTaskStack(task2, 256, "task2");
-  #endif
+#endif
 
   Scheduler::initTaskStack(task3, 256, "task3");
 

@@ -1,10 +1,14 @@
 #include "peripherals/microsd.hpp"
+
 #include "error/handler.hpp"
+
 #include <stdio.h>
 
 #if ENABLE_MICROSD
-SD_HandleTypeDef MicroSD::hsd;
-bool MicroSD::isInitialized = false;
+namespace MicroSD {
+SD_HandleTypeDef hsd;
+bool isInitialized = false;
+} // namespace MicroSD
 
 void MicroSD::init() {
   // Reset initialization state
@@ -18,7 +22,7 @@ void MicroSD::init() {
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   // Configure SDMMC pins
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12;
+  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -60,37 +64,38 @@ void MicroSD::init() {
   isInitialized = true;
 }
 
-void MicroSD::readBlocks(uint8_t* pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
-  if (!isInitialized) return; // return silently if not initialized
-	__disable_irq(); // ensure no interrupts during read
+void MicroSD::readBlocks(uint8_t *pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
+  if (!isInitialized)
+    return;        // return silently if not initialized
+  __disable_irq(); // ensure no interrupts during read
   if (HAL_SD_ReadBlocks(&hsd, pData, blockAddr, numOfBlocks, timeout) != HAL_OK) {
     ErrorHandler::handle(ErrorCode::SD_CARD_READ_FAILED, __FILE__, __LINE__);
   }
-	__enable_irq();
+  __enable_irq();
 }
 
-void MicroSD::writeBlocks(uint8_t* pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
-  if (!isInitialized) return; // return silently if not initialized
-	__disable_irq(); // ensure no interrupts during write
+void MicroSD::writeBlocks(uint8_t *pData, uint32_t blockAddr, uint32_t numOfBlocks, uint32_t timeout) {
+  if (!isInitialized)
+    return;        // return silently if not initialized
+  __disable_irq(); // ensure no interrupts during write
   if (HAL_SD_WriteBlocks(&hsd, pData, blockAddr, numOfBlocks, timeout) != HAL_OK) {
     ErrorHandler::handle(ErrorCode::SD_CARD_WRITE_FAILED, __FILE__, __LINE__);
   }
-	__enable_irq();
+  __enable_irq();
 }
 
 uint64_t MicroSD::getCardInfo() {
-  if (!isInitialized) return 0; // return 0 if not initialized
+  if (!isInitialized)
+    return 0; // return 0 if not initialized
   HAL_SD_CardInfoTypeDef cardInfo;
   if (HAL_SD_GetCardInfo(&hsd, &cardInfo) != HAL_OK) {
     ErrorHandler::handle(ErrorCode::SD_CARD_NOT_PRESENT, __FILE__, __LINE__);
   }
-	uint64_t faketuple;
-	faketuple = (uint64_t)cardInfo.BlockNbr << 32;
-	faketuple |= (uint64_t)cardInfo.BlockSize;
+  uint64_t faketuple;
+  faketuple = (uint64_t)cardInfo.BlockNbr << 32;
+  faketuple |= (uint64_t)cardInfo.BlockSize;
   return faketuple;
-} 
-
-bool MicroSD::available() {
-  return isInitialized;
 }
+
+bool MicroSD::available() { return isInitialized; }
 #endif
