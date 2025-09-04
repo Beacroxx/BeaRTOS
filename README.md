@@ -1,3 +1,5 @@
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/G2G21EED6T)
+
 # STM32H7 RTOS Project
 
 A (potentially) robust and stable RTOS implementation for STM32H7 microcontrollers featuring comprehensive task management, memory protection, and peripheral support.
